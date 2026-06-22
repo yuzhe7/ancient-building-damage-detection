@@ -1,6 +1,5 @@
 # Ultralytics 🚀 AGPL-3.0 License - https://ultralytics.com/license
 from .modules.repvit_block import RepViTBlock
-
 from .tasks import (
     BaseModel,
     ClassificationModel,
@@ -13,10 +12,12 @@ from .tasks import (
     torch_safe_load,
     yaml_model_load,
 )
+
 __all__ = (
     "BaseModel",
     "ClassificationModel",
     "DetectionModel",
+    "RepViTBlock",
     "SegmentationModel",
     "guess_model_scale",
     "guess_model_task",
@@ -24,5 +25,4 @@ __all__ = (
     "parse_model",
     "torch_safe_load",
     "yaml_model_load",
-    "RepViTBlock",
 )
