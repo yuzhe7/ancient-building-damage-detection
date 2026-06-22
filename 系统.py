@@ -1,54 +1,74 @@
-import sys
 import os
+import os as _os
+import sys
 import time
 from datetime import datetime
+from io import BytesIO
+
 import cv2
-from PyQt5.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QPushButton, QLabel, QFileDialog, QTextEdit, QGroupBox, QMessageBox,
-    QProgressBar, QSlider, QDoubleSpinBox, QFrame
-)
-from PyQt5.QtGui import QPixmap, QImage
-from PyQt5.QtCore import Qt, QThread, pyqtSignal
-from ultralytics import YOLO
-from PIL import Image
 import numpy as np
-from openpyxl import Workbook, load_workbook
-from openpyxl.styles import Font, Alignment, PatternFill
+from openpyxl import Workbook
+from openpyxl.styles import Alignment, Font, PatternFill
+from PIL import Image
+from PyQt5.QtCore import Qt, QThread, pyqtSignal
+from PyQt5.QtGui import QImage, QPixmap
+from PyQt5.QtWidgets import (
+    QApplication,
+    QDoubleSpinBox,
+    QFileDialog,
+    QFrame,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QMainWindow,
+    QMessageBox,
+    QProgressBar,
+    QPushButton,
+    QSlider,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
+)
+from reportlab.lib import colors as rl_colors
+from reportlab.lib.enums import TA_CENTER, TA_LEFT
 
 # PDF 报告相关
 from reportlab.lib.pagesizes import A4
-from reportlab.lib.units import mm, cm
-from reportlab.lib import colors as rl_colors
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.platypus import (
-    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
-    Image as RLImage, PageBreak, HRFlowable, KeepTogether
-)
-from reportlab.platypus.doctemplate import PageTemplate, BaseDocTemplate, Frame
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.lib.units import mm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.platypus.frames import Frame
-from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
-from io import BytesIO
-import os as _os
+from reportlab.platypus import (
+    HRFlowable,
+    PageBreak,
+    Paragraph,
+    SimpleDocTemplate,
+    Spacer,
+    Table,
+    TableStyle,
+)
+from reportlab.platypus import Image as RLImage
+
+from ultralytics import YOLO
 
 # ---- 注册中文字体 ----
-_WINDIR = _os.environ.get('WINDIR', 'C:/Windows')
-_FONTS_DIR = _os.path.join(_WINDIR, 'Fonts')
+_WINDIR = _os.environ.get("WINDIR", "C:/Windows")
+_FONTS_DIR = _os.path.join(_WINDIR, "Fonts")
 try:
-    pdfmetrics.registerFont(TTFont('SimHei', _os.path.join(_FONTS_DIR, 'simhei.ttf')))
-    pdfmetrics.registerFont(TTFont('SimSun', _os.path.join(_FONTS_DIR, 'simsun.ttc'), subfontIndex=0))
-    pdfmetrics.registerFont(TTFont('SimKai', _os.path.join(_FONTS_DIR, 'simkai.ttf')))
-    _CN_FONT = 'SimHei'
-    _CN_BODY = 'SimSun'
+    pdfmetrics.registerFont(TTFont("SimHei", _os.path.join(_FONTS_DIR, "simhei.ttf")))
+    pdfmetrics.registerFont(TTFont("SimSun", _os.path.join(_FONTS_DIR, "simsun.ttc"), subfontIndex=0))
+    pdfmetrics.registerFont(TTFont("SimKai", _os.path.join(_FONTS_DIR, "simkai.ttf")))
+    _CN_FONT = "SimHei"
+    _CN_BODY = "SimSun"
 except Exception:
-    _CN_FONT = 'Helvetica'
-    _CN_BODY = 'Helvetica'
+    _CN_FONT = "Helvetica"
+    _CN_BODY = "Helvetica"
 
-pdfmetrics.registerFont(TTFont('SimHei', _os.path.join(_FONTS_DIR, 'simhei.ttf'))) if 'SimHei' not in pdfmetrics._fonts else None
+pdfmetrics.registerFont(
+    TTFont("SimHei", _os.path.join(_FONTS_DIR, "simhei.ttf"))
+) if "SimHei" not in pdfmetrics._fonts else None
 try:
-    pdfmetrics.registerFont(TTFont('SimSun', _os.path.join(_FONTS_DIR, 'simsun.ttc'), subfontIndex=0))
+    pdfmetrics.registerFont(TTFont("SimSun", _os.path.join(_FONTS_DIR, "simsun.ttc"), subfontIndex=0))
 except Exception:
     pass
 
@@ -80,7 +100,7 @@ def draw_detections(img, boxes, class_names, conf_threshold=0.5, img_area=None):
         "W_E": (255, 0, 0),
         "ALKALI": (255, 165, 0),
         "MISS": (255, 0, 255),
-        "MOSS": (0, 0, 255)
+        "MOSS": (0, 0, 255),
     }
     text_color = (0, 0, 0)
     thickness = 2
@@ -98,9 +118,9 @@ def draw_detections(img, boxes, class_names, conf_threshold=0.5, img_area=None):
         if img_area:
             bw, bh = x2 - x1, y2 - y1
             pct = (bw * bh) / img_area * 100
-            label = "%s %.2f | %.1f%%" % (cls_name, conf, pct)
+            label = f"{cls_name} {conf:.2f} | {pct:.1f}%"
         else:
-            label = "%s %.2f" % (cls_name, conf)
+            label = f"{cls_name} {conf:.2f}"
         box_color = class_color_map.get(cls_name, (0, 255, 0))
         bg_color = box_color
         cv2.rectangle(img_copy, (x1, y1), (x2, y2), box_color, thickness)
@@ -118,24 +138,23 @@ def draw_detections(img, boxes, class_names, conf_threshold=0.5, img_area=None):
             label_y = bg_y2 - text_padding
 
         cv2.rectangle(img_copy, (bg_x1, bg_y1), (bg_x2, bg_y2), bg_color, -1)
-        cv2.putText(img_copy, label, (label_x, label_y),
-                    font, font_scale, text_color, 1)
+        cv2.putText(img_copy, label, (label_x, label_y), font, font_scale, text_color, 1)
     return img_copy
 
 
 # ---------------------- 损伤严重程度评级 ----------------------
 SEVERITY_CONFIG = {
     # 损伤类型: (轻微阈值, 中等阈值) — 超过中等阈值即为严重
-    "CRACK":  (3, 8),    # 裂缝：面积占比较小也可能严重
-    "MISS":   (5, 15),   # 缺失：大块缺失为严重
-    "W_E":    (5, 15),   # 风化：大面积风化严重
-    "ALKALI": (3, 10),   # 碱蚀
-    "MOSS":   (3, 10),   # 苔藓
+    "CRACK": (3, 8),  # 裂缝：面积占比较小也可能严重
+    "MISS": (5, 15),  # 缺失：大块缺失为严重
+    "W_E": (5, 15),  # 风化：大面积风化严重
+    "ALKALI": (3, 10),  # 碱蚀
+    "MOSS": (3, 10),  # 苔藓
 }
 SEVERITY_COLORS = {
-    "轻微": (0, 255, 0),       # 绿色
-    "中等": (0, 165, 255),     # 橙色
-    "严重": (0, 0, 255),       # 红色
+    "轻微": (0, 255, 0),  # 绿色
+    "中等": (0, 165, 255),  # 橙色
+    "严重": (0, 0, 255),  # 红色
 }
 
 # ---------------------- 修复建议库 ----------------------
@@ -169,12 +188,12 @@ REPAIR_ADVICE = {
 
 
 def get_advice(cls_name, severity):
-    """获取修复建议"""
+    """获取修复建议."""
     return REPAIR_ADVICE.get(cls_name, {}).get(severity, "请结合现场实际情况制定修复方案。")
 
 
 def get_severity(box_area_pct, cls_name):
-    """根据面积占比和损伤类型判定严重程度
+    """根据面积占比和损伤类型判定严重程度.
 
     Args:
         box_area_pct (float): 检测框面积占图像百分比
@@ -194,7 +213,7 @@ def get_severity(box_area_pct, cls_name):
 
 # ---------------------- 损伤变化对比 ----------------------
 def match_damages(data_before, data_after, dist_thresh=120):
-    """匹配前后两张图像中的同一损伤
+    """匹配前后两张图像中的同一损伤.
 
     Args:
         data_before (list): 前图的损伤数据列表
@@ -203,7 +222,7 @@ def match_damages(data_before, data_after, dist_thresh=120):
 
     Returns:
         list: 每个元素的格式为 {status, cls, area_before, area_after, data_before, data_after}
-              status: 'new'(新增) 'expanded'(扩大) 'shrunk'(缩小) 'stable'(稳定) 'repaired'(已修复)
+        status: 'new'(新增) 'expanded'(扩大) 'shrunk'(缩小) 'stable'(稳定) 'repaired'(已修复)
     """
     matches = []
     used_after = set()
@@ -215,7 +234,7 @@ def match_damages(data_before, data_after, dist_thresh=120):
         bcls = b["损伤类型"]
 
         best_match = None
-        best_dist = float('inf')
+        best_dist = float("inf")
         best_idx = -1
 
         for j, a in enumerate(data_after):
@@ -234,7 +253,9 @@ def match_damages(data_before, data_after, dist_thresh=120):
         row = {"cls": bcls, "data_before": b}
         if best_match is not None:
             used_after.add(best_idx)
-            aarea = abs(best_match["左上角X"] - best_match["右下角X"]) * abs(best_match["左上角Y"] - best_match["右下角Y"])
+            aarea = abs(best_match["左上角X"] - best_match["右下角X"]) * abs(
+                best_match["左上角Y"] - best_match["右下角Y"]
+            )
             row["data_after"] = best_match
             row["area_before"] = barea
             row["area_after"] = aarea
@@ -256,17 +277,22 @@ def match_damages(data_before, data_after, dist_thresh=120):
     for j, a in enumerate(data_after):
         if j not in used_after:
             aarea = abs(a["左上角X"] - a["右下角X"]) * abs(a["左上角Y"] - a["右下角Y"])
-            matches.append({
-                "cls": a["损伤类型"], "status": "新增",
-                "area_before": 0, "area_after": aarea,
-                "data_before": None, "data_after": a,
-            })
+            matches.append(
+                {
+                    "cls": a["损伤类型"],
+                    "status": "新增",
+                    "area_before": 0,
+                    "area_after": aarea,
+                    "data_before": None,
+                    "data_after": a,
+                }
+            )
 
     return matches
 
 
 def draw_comparison_image(img_before, img_after, matches):
-    """绘制前后对比图：左侧前图 + 右侧后图，配对的损伤连线和颜色标注
+    """绘制前后对比图：左侧前图 + 右侧后图，配对的损伤连线和颜色标注.
 
     Args:
         img_before (np.ndarray): 前图 (RGB)
@@ -284,7 +310,7 @@ def draw_comparison_image(img_before, img_after, matches):
 
     canvas = np.ones((h, w_total, 3), dtype=np.uint8) * 240
     canvas[:h1, :w1] = img_before
-    canvas[:h2, w1 + gap:w_total] = img_after
+    canvas[:h2, w1 + gap : w_total] = img_after
 
     # 分隔线
     cv2.line(canvas, (w1 + 2, 0), (w1 + 2, h), (180, 180, 180), 2)
@@ -328,16 +354,16 @@ def draw_comparison_image(img_before, img_after, matches):
     for status, color in status_colors.items():
         (tw, _), _ = cv2.getTextSize(status, cv2.FONT_HERSHEY_SIMPLEX, 0.45, 1)
         cv2.rectangle(canvas, (leg_x, h - leg_h + 6), (leg_x + 14, h - 8), color, -1)
-        cv2.putText(canvas, status, (leg_x + 18, h - leg_h + 17),
-                   cv2.FONT_HERSHEY_SIMPLEX, 0.45, (240, 235, 225), 1)
+        cv2.putText(canvas, status, (leg_x + 18, h - leg_h + 17), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (240, 235, 225), 1)
         leg_x += tw + 44
 
     return canvas
 
 
 class CompareThread(QThread):
-    """变化对比检测线程"""
-    progress_signal = pyqtSignal(str)      # 进度文字
+    """变化对比检测线程."""
+
+    progress_signal = pyqtSignal(str)  # 进度文字
     finish_signal = pyqtSignal(np.ndarray, str, list)  # 对比图, 汇总文字, matches
 
     def __init__(self, model, path_before, path_after, conf_threshold=0.6):
@@ -355,8 +381,9 @@ class CompareThread(QThread):
                 self.finish_signal.emit(None, "❌ 无法读取前图", [])
                 return
             img_b_rgb = cv2.cvtColor(img_b, cv2.COLOR_BGR2RGB)
-            res_b = self.model.predict(img_b_rgb, save=False, conf=self.conf_threshold,
-                                       iou=0.5, verbose=False, agnostic_nms=True)[0]
+            res_b = self.model.predict(
+                img_b_rgb, save=False, conf=self.conf_threshold, iou=0.5, verbose=False, agnostic_nms=True
+            )[0]
 
             self.progress_signal.emit("正在检测后图...")
             img_a = cv2.imread(self.path_after)
@@ -364,8 +391,9 @@ class CompareThread(QThread):
                 self.finish_signal.emit(None, "❌ 无法读取后图", [])
                 return
             img_a_rgb = cv2.cvtColor(img_a, cv2.COLOR_BGR2RGB)
-            res_a = self.model.predict(img_a_rgb, save=False, conf=self.conf_threshold,
-                                       iou=0.5, verbose=False, agnostic_nms=True)[0]
+            res_a = self.model.predict(
+                img_a_rgb, save=False, conf=self.conf_threshold, iou=0.5, verbose=False, agnostic_nms=True
+            )[0]
 
             self.progress_signal.emit("正在匹配损伤...")
 
@@ -381,15 +409,19 @@ class CompareThread(QThread):
                         x1, y1, x2, y2 = map(int, box.xyxy[0])
                         area_pct = round((x2 - x1) * (y2 - y1) / total_area * 100, 2)
                         severity, _ = get_severity(area_pct, self.model.names[int(box.cls)])
-                        data.append({
-                            "序号": i + 1,
-                            "损伤类型": self.model.names[int(box.cls)],
-                            "置信度": round(box.conf.item(), 2),
-                            "面积占比": area_pct,
-                            "严重程度": severity,
-                            "左上角X": x1, "左上角Y": y1,
-                            "右下角X": x2, "右下角Y": y2,
-                        })
+                        data.append(
+                            {
+                                "序号": i + 1,
+                                "损伤类型": self.model.names[int(box.cls)],
+                                "置信度": round(box.conf.item(), 2),
+                                "面积占比": area_pct,
+                                "严重程度": severity,
+                                "左上角X": x1,
+                                "左上角Y": y1,
+                                "右下角X": x2,
+                                "右下角Y": y2,
+                            }
+                        )
                 return data
 
             data_before = extract_data(res_b, total1)
@@ -412,16 +444,16 @@ class CompareThread(QThread):
                 if cnt > 0:
                     summary += "%s %s：%d 处\n" % (emoji, st, cnt)
                 else:
-                    summary += "    %s：0 处\n" % st
+                    summary += f"    {st}：0 处\n"
 
             self.finish_signal.emit(comp_img, summary, matches)
         except Exception as e:
-            self.finish_signal.emit(None, f"❌ 对比失败：{str(e)}", [])
+            self.finish_signal.emit(None, f"❌ 对比失败：{e!s}", [])
 
 
 # ---------------------- 热力图生成 ----------------------
 def generate_heatmap(img_rgb, boxes, blur_radius=25):
-    """根据检测框生成损伤热力图
+    """根据检测框生成损伤热力图.
 
     Args:
         img_rgb (np.ndarray): 原始RGB图像
@@ -446,7 +478,7 @@ def generate_heatmap(img_rgb, boxes, blur_radius=25):
 
         # 在检测框中心添加高斯加权热力值
         y_grid, x_grid = np.ogrid[:h, :w]
-        dist_sq = ((x_grid - cx) ** 2) / (rx ** 2) + ((y_grid - cy) ** 2) / (ry ** 2)
+        dist_sq = ((x_grid - cx) ** 2) / (rx**2) + ((y_grid - cy) ** 2) / (ry**2)
         gaussian = np.exp(-dist_sq / 2) * conf  # 置信度加权
         heatmap += gaussian.astype(np.float32)
 
@@ -466,7 +498,7 @@ def generate_heatmap(img_rgb, boxes, blur_radius=25):
 
 
 def draw_heatmap_legend(img, position=(10, 30), size=(18, 180)):
-    """在热力图图像上绘制颜色图例（红=高密度，蓝=低密度）
+    """在热力图图像上绘制颜色图例（红=高密度，蓝=低密度）.
 
     Args:
         img (np.ndarray): 热力图图像
@@ -482,7 +514,7 @@ def draw_heatmap_legend(img, position=(10, 30), size=(18, 180)):
     gradient = cv2.resize(gradient, (w, h))
 
     # 绘制到图像上
-    img[y:y + h, x:x + w] = gradient
+    img[y : y + h, x : x + w] = gradient
 
     # 绘制边框和文字
     cv2.rectangle(img, (x, y), (x + w, y + h), (255, 255, 255), 1)
@@ -514,9 +546,9 @@ class DetectionThread(QThread):
 
         # 用于批量保存的容器
         self.batch_result_images = []  # 元素为 (img_rgb, filename)
-        self.video_frames = []         # 所有检测帧 (RGB)
-        self.video_fps = 30.0          # 默认帧率
-        self.video_size = (640, 480)   # 默认尺寸
+        self.video_frames = []  # 所有检测帧 (RGB)
+        self.video_fps = 30.0  # 默认帧率
+        self.video_size = (640, 480)  # 默认尺寸
 
     def run(self):
         try:
@@ -529,10 +561,9 @@ class DetectionThread(QThread):
             elif self.detect_type == "camera":
                 self._detect_camera()
         except Exception as e:
-            import traceback
             self.single_result_signal.emit(
-                np.zeros((100, 300, 3), dtype=np.uint8),
-                "❌ 检测出错：%s\n请确认图片路径正确且模型已加载" % str(e), [])
+                np.zeros((100, 300, 3), dtype=np.uint8), f"❌ 检测出错：{e!s}\n请确认图片路径正确且模型已加载", []
+            )
         finally:
             self.is_running = False
 
@@ -543,16 +574,13 @@ class DetectionThread(QThread):
         img_h, img_w = img_rgb.shape[:2]
         total_area = img_w * img_h
         results = self.model.predict(
-            source=img_rgb,
-            save=False,
-            conf=self.conf_threshold,
-            iou=0.5,
-            verbose=False,
-            agnostic_nms=True
+            source=img_rgb, save=False, conf=self.conf_threshold, iou=0.5, verbose=False, agnostic_nms=True
         )
         result = results[0]
         boxes = result.boxes
-        detected_img = draw_detections(img_rgb, boxes, self.model.names, conf_threshold=self.conf_threshold, img_area=total_area)
+        detected_img = draw_detections(
+            img_rgb, boxes, self.model.names, conf_threshold=self.conf_threshold, img_area=total_area
+        )
 
         info_text = ""
         damage_data = []
@@ -570,49 +598,71 @@ class DetectionThread(QThread):
                 x1, y1, x2, y2 = map(int, box.xyxy[0])
                 bw, bh = x2 - x1, y2 - y1
                 area_pct = round((bw * bh) / total_area * 100, 2)
-                severity, sev_color = get_severity(area_pct, cls_name)
+                severity, _sev_color = get_severity(area_pct, cls_name)
                 severity_stats[severity] += 1
 
                 advice = get_advice(cls_name, severity)
                 info_text += "损伤%d：%s %.2f | %s | 面积占比%.2f%%\n坐标：%d,%d,%d,%d\n💡 %s\n\n" % (
-                    idx + 1, cls_name, conf, severity, area_pct, x1, y1, x2, y2, advice)
+                    idx + 1,
+                    cls_name,
+                    conf,
+                    severity,
+                    area_pct,
+                    x1,
+                    y1,
+                    x2,
+                    y2,
+                    advice,
+                )
 
                 data = {
-                    "序号": idx + 1, "损伤类型": cls_name, "置信度": conf,
-                    "面积占比": area_pct, "严重程度": severity,
-                    "左上角X": x1, "左上角Y": y1, "右下角X": x2, "右下角Y": y2,
+                    "序号": idx + 1,
+                    "损伤类型": cls_name,
+                    "置信度": conf,
+                    "面积占比": area_pct,
+                    "严重程度": severity,
+                    "左上角X": x1,
+                    "左上角Y": y1,
+                    "右下角X": x2,
+                    "右下角Y": y2,
                     "检测时间": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    "来源路径": source_path, "帧序号": frame_idx if frame_idx is not None else ""
+                    "来源路径": source_path,
+                    "帧序号": frame_idx if frame_idx is not None else "",
                 }
                 damage_data.append(data)
 
             # 添加严重程度统计
             info_text += "\n📊 严重程度统计：轻微 %d | 中等 %d | 严重 %d" % (
-                severity_stats["轻微"], severity_stats["中等"], severity_stats["严重"])
+                severity_stats["轻微"],
+                severity_stats["中等"],
+                severity_stats["严重"],
+            )
 
         return detected_img, info_text, damage_data
 
     def _detect_single_img(self, img_path):
         if not os.path.isfile(img_path):
-            self.single_result_signal.emit(
-                np.zeros((100, 400, 3), dtype=np.uint8),
-                "❌ 文件不存在：%s" % img_path, [])
+            self.single_result_signal.emit(np.zeros((100, 400, 3), dtype=np.uint8), f"❌ 文件不存在：{img_path}", [])
             return
         img_bgr = cv2.imread(img_path)
         if img_bgr is None:
             self.single_result_signal.emit(
                 np.zeros((100, 400, 3), dtype=np.uint8),
-                "❌ 无法读取图片：%s\n请确认文件是 jpg/png/bmp 格式" % img_path, [])
+                f"❌ 无法读取图片：{img_path}\n请确认文件是 jpg/png/bmp 格式",
+                [],
+            )
             return
         img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
         detected_img, info_text, damage_data = self._predict_image(img_rgb, img_path)
         self.single_result_signal.emit(detected_img, info_text, damage_data)
 
     def _detect_batch_img(self, folder_path):
-        img_exts = ('.jpg', '.jpeg', '.png', '.bmp')
-        img_files = [os.path.join(folder_path, f) for f in os.listdir(folder_path)
-                     if os.path.isfile(os.path.join(folder_path, f)) and
-                     os.path.splitext(f)[1].lower() in img_exts]
+        img_exts = (".jpg", ".jpeg", ".png", ".bmp")
+        img_files = [
+            os.path.join(folder_path, f)
+            for f in os.listdir(folder_path)
+            if os.path.isfile(os.path.join(folder_path, f)) and os.path.splitext(f)[1].lower() in img_exts
+        ]
         if not img_files:
             return
         total = len(img_files)
@@ -708,7 +758,8 @@ class DetectionThread(QThread):
                 first_frame = False
             self.video_origin_signal.emit(frame_rgb)
             detected_frame, _, damage_data = self._predict_image(
-                frame_rgb, "camera_%d" % frame_count, is_video=True, frame_idx=frame_count)
+                frame_rgb, "camera_%d" % frame_count, is_video=True, frame_idx=frame_count
+            )
             self.last_video_frame = detected_frame
             self.video_frame_signal.emit(detected_frame)
             self.video_frames.append(detected_frame)
@@ -735,14 +786,14 @@ class SaveImageThread(QThread):
         try:
             if isinstance(self.img_data, np.ndarray) and self.img_data.ndim == 3 and self.img_data.shape[2] == 3:
                 img = Image.fromarray(self.img_data)
-                if self.save_path.lower().endswith('.jpg'):
+                if self.save_path.lower().endswith(".jpg"):
                     img = img.convert("RGB")
                 img.save(self.save_path)
                 self.finish_signal.emit(True, "结果保存成功")
             else:
                 self.finish_signal.emit(False, "数据格式错误")
         except Exception as e:
-            self.finish_signal.emit(False, f"保存失败：{str(e)}")
+            self.finish_signal.emit(False, f"保存失败：{e!s}")
 
 
 # ---------------------- 批量图片保存线程 ----------------------
@@ -764,7 +815,7 @@ class SaveBatchImagesThread(QThread):
                 pil_img.save(save_path)
             self.finish_signal.emit(True, f"批量保存完成，共 {len(self.images)} 张")
         except Exception as e:
-            self.finish_signal.emit(False, f"批量保存出错：{str(e)}")
+            self.finish_signal.emit(False, f"批量保存出错：{e!s}")
 
 
 # ---------------------- 视频保存线程 ----------------------
@@ -780,10 +831,10 @@ class SaveVideoThread(QThread):
 
     def run(self):
         try:
-            if self.save_path.lower().endswith('.mp4'):
-                fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+            if self.save_path.lower().endswith(".mp4"):
+                fourcc = cv2.VideoWriter_fourcc(*"mp4v")
             else:
-                fourcc = cv2.VideoWriter_fourcc(*'XVID')
+                fourcc = cv2.VideoWriter_fourcc(*"XVID")
             out = cv2.VideoWriter(self.save_path, fourcc, self.fps, self.size)
             for frame_rgb in self.frames:
                 frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
@@ -791,7 +842,7 @@ class SaveVideoThread(QThread):
             out.release()
             self.finish_signal.emit(True, f"视频保存成功，共 {len(self.frames)} 帧")
         except Exception as e:
-            self.finish_signal.emit(False, f"视频保存失败：{str(e)}")
+            self.finish_signal.emit(False, f"视频保存失败：{e!s}")
 
 
 # ---------------------- Excel导出线程 ----------------------
@@ -808,8 +859,20 @@ class SaveExcelThread(QThread):
             wb = Workbook()
             ws = wb.active
             ws.title = "检测结果"
-            headers = ["序号", "损伤类型", "置信度", "面积占比(%)", "严重程度",
-                       "X1", "Y1", "X2", "Y2", "帧号", "时间", "路径"]
+            headers = [
+                "序号",
+                "损伤类型",
+                "置信度",
+                "面积占比(%)",
+                "严重程度",
+                "X1",
+                "Y1",
+                "X2",
+                "Y2",
+                "帧号",
+                "时间",
+                "路径",
+            ]
             ws.append(headers)
             for col_idx, title in enumerate(headers, 1):
                 cell = ws.cell(row=1, column=col_idx)
@@ -825,10 +888,19 @@ class SaveExcelThread(QThread):
 
             for d in self.data:
                 row_data = [
-                    d["序号"], d["损伤类型"], d["置信度"],
-                    d.get("面积占比", ""), d.get("严重程度", ""),
-                    d["左上角X"], d["左上角Y"], d["右下角X"], d["右下角Y"],
-                    d["帧序号"], d["检测时间"], d["来源路径"]]
+                    d["序号"],
+                    d["损伤类型"],
+                    d["置信度"],
+                    d.get("面积占比", ""),
+                    d.get("严重程度", ""),
+                    d["左上角X"],
+                    d["左上角Y"],
+                    d["右下角X"],
+                    d["右下角Y"],
+                    d["帧序号"],
+                    d["检测时间"],
+                    d["来源路径"],
+                ]
                 ws.append(row_data)
 
                 # 严重程度列着色
@@ -845,78 +917,104 @@ class SaveExcelThread(QThread):
             wb.close()
             self.finished.emit(True, f"导出成功：\n{self.save_path}")
         except Exception as e:
-            self.finished.emit(False, f"导出异常：{str(e)}")
+            self.finished.emit(False, f"导出异常：{e!s}")
 
 
 # ---------------------- PDF报告生成（增强版）--------------------
-def _cn_style(name, parent='Normal', fontName=None, fontSize=10, leading=16,
-              textColor=None, alignment=TA_LEFT, spaceAfter=2*mm, spaceBefore=0,
-              bold=False):
-    """创建支持中文的段落样式"""
+def _cn_style(
+    name,
+    parent="Normal",
+    fontName=None,
+    fontSize=10,
+    leading=16,
+    textColor=None,
+    alignment=TA_LEFT,
+    spaceAfter=2 * mm,
+    spaceBefore=0,
+    bold=False,
+):
+    """创建支持中文的段落样式."""
     font = fontName or _CN_BODY
     if bold and font == _CN_BODY:
         font = _CN_FONT
     return ParagraphStyle(
-        name, parent=styles_cn.get(parent, getSampleStyleSheet()[parent]) if isinstance(parent, str) else parent,
-        fontName=font, fontSize=fontSize, leading=leading,
-        textColor=textColor or rl_colors.HexColor('#333333'),
-        alignment=alignment, spaceAfter=spaceAfter, spaceBefore=spaceBefore,
+        name,
+        parent=styles_cn.get(parent, getSampleStyleSheet()[parent]) if isinstance(parent, str) else parent,
+        fontName=font,
+        fontSize=fontSize,
+        leading=leading,
+        textColor=textColor or rl_colors.HexColor("#333333"),
+        alignment=alignment,
+        spaceAfter=spaceAfter,
+        spaceBefore=spaceBefore,
     )
 
 
 styles_cn = getSampleStyleSheet()
 
+
 def _make_section_header(text, h2_style=None):
-    """生成带分隔线的章节标题"""
+    """生成带分隔线的章节标题."""
     if h2_style is None:
         h2_style = ParagraphStyle(
-            'SectionHeader', parent=styles_cn['Heading2'],
-            fontName=_CN_FONT, fontSize=14, leading=20,
-            textColor=rl_colors.HexColor('#1a237e'),
-            spaceAfter=4*mm, spaceBefore=6*mm,
+            "SectionHeader",
+            parent=styles_cn["Heading2"],
+            fontName=_CN_FONT,
+            fontSize=14,
+            leading=20,
+            textColor=rl_colors.HexColor("#1a237e"),
+            spaceAfter=4 * mm,
+            spaceBefore=6 * mm,
         )
     return [
-        HRFlowable(width="100%", thickness=1, color=rl_colors.HexColor('#c9a87c'), spaceAfter=2*mm),
+        HRFlowable(width="100%", thickness=1, color=rl_colors.HexColor("#c9a87c"), spaceAfter=2 * mm),
         Paragraph(text, h2_style),
     ]
 
 
-def _styled_table(data_rows, col_widths, header_bg='#1a237e', header_fg=rl_colors.white,
-                  font_name=None, font_size=9, sev_col=None, sev_rows=None):
-    """创建统一样式的表格"""
+def _styled_table(
+    data_rows,
+    col_widths,
+    header_bg="#1a237e",
+    header_fg=rl_colors.white,
+    font_name=None,
+    font_size=9,
+    sev_col=None,
+    sev_rows=None,
+):
+    """创建统一样式的表格."""
     if font_name is None:
         font_name = _CN_BODY
     cmds = [
-        ('FONTNAME', (0, 0), (-1, -1), font_name),
-        ('FONTSIZE', (0, 0), (-1, -1), font_size),
-        ('BACKGROUND', (0, 0), (-1, 0), rl_colors.HexColor(header_bg)),
-        ('TEXTCOLOR', (0, 0), (-1, 0), header_fg),
-        ('GRID', (0, 0), (-1, -1), 0.4, rl_colors.HexColor('#d0d0d0')),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('TOPPADDING', (0, 0), (-1, -1), 4),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-        ('LEFTPADDING', (0, 0), (-1, -1), 6),
+        ("FONTNAME", (0, 0), (-1, -1), font_name),
+        ("FONTSIZE", (0, 0), (-1, -1), font_size),
+        ("BACKGROUND", (0, 0), (-1, 0), rl_colors.HexColor(header_bg)),
+        ("TEXTCOLOR", (0, 0), (-1, 0), header_fg),
+        ("GRID", (0, 0), (-1, -1), 0.4, rl_colors.HexColor("#d0d0d0")),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("TOPPADDING", (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ("LEFTPADDING", (0, 0), (-1, -1), 6),
     ]
     # 奇偶行交替底色
     for i in range(1, len(data_rows)):
         if i % 2 == 0:
-            cmds.append(('BACKGROUND', (0, i), (-1, i), rl_colors.HexColor('#f5f5f5')))
+            cmds.append(("BACKGROUND", (0, i), (-1, i), rl_colors.HexColor("#f5f5f5")))
 
     # 严重程度列着色
     if sev_col is not None and sev_rows:
         sev_colors = {"轻微": "#C8E6C9", "中等": "#FFE082", "严重": "#FFCDD2"}
         for i, sev in sev_rows:
             if sev in sev_colors:
-                cmds.append(('BACKGROUND', (sev_col, i), (sev_col, i), rl_colors.HexColor(sev_colors[sev])))
+                cmds.append(("BACKGROUND", (sev_col, i), (sev_col, i), rl_colors.HexColor(sev_colors[sev])))
 
     table = Table(data_rows, colWidths=col_widths, repeatRows=1)
     table.setStyle(TableStyle(cmds))
     return table
 
 
-def generate_pdf_report(output_path, detect_type, source_path,
-                        damage_data, result_img, heatmap_img=None):
-    """生成古建筑损伤检测 PDF 报告（增强版）
+def generate_pdf_report(output_path, detect_type, source_path, damage_data, result_img, heatmap_img=None):
+    """生成古建筑损伤检测 PDF 报告（增强版）.
 
     新增内容：
     - 封面页（报告编号、机构信息）
@@ -930,13 +1028,16 @@ def generate_pdf_report(output_path, detect_type, source_path,
     - 页脚页码
     """
     W = A4[0]  # 页面宽度
-    H = A4[1]  # 页面高度
+    A4[1]  # 页面高度
 
     # ---------- 构建文档 ----------
     doc = SimpleDocTemplate(
-        output_path, pagesize=A4,
-        rightMargin=18*mm, leftMargin=18*mm,
-        topMargin=18*mm, bottomMargin=20*mm,
+        output_path,
+        pagesize=A4,
+        rightMargin=18 * mm,
+        leftMargin=18 * mm,
+        topMargin=18 * mm,
+        bottomMargin=20 * mm,
         title="古建筑损伤检测报告",
         author="Ancient Building Damage Detection System",
     )
@@ -944,28 +1045,56 @@ def generate_pdf_report(output_path, detect_type, source_path,
 
     # ---- 样式定义 ----
     cover_title_style = ParagraphStyle(
-        'CoverTitle', fontName=_CN_FONT, fontSize=26, leading=32,
-        textColor=rl_colors.white, alignment=TA_CENTER, spaceAfter=4*mm,
+        "CoverTitle",
+        fontName=_CN_FONT,
+        fontSize=26,
+        leading=32,
+        textColor=rl_colors.white,
+        alignment=TA_CENTER,
+        spaceAfter=4 * mm,
     )
     cover_subtitle_style = ParagraphStyle(
-        'CoverSubtitle', fontName=_CN_BODY, fontSize=14, leading=20,
-        textColor=rl_colors.HexColor('#d4a574'), alignment=TA_CENTER, spaceAfter=20*mm,
+        "CoverSubtitle",
+        fontName=_CN_BODY,
+        fontSize=14,
+        leading=20,
+        textColor=rl_colors.HexColor("#d4a574"),
+        alignment=TA_CENTER,
+        spaceAfter=20 * mm,
     )
-    h1_style = ParagraphStyle(
-        'H1', fontName=_CN_FONT, fontSize=16, leading=22,
-        textColor=rl_colors.HexColor('#1a237e'), spaceAfter=4*mm, spaceBefore=8*mm,
+    ParagraphStyle(
+        "H1",
+        fontName=_CN_FONT,
+        fontSize=16,
+        leading=22,
+        textColor=rl_colors.HexColor("#1a237e"),
+        spaceAfter=4 * mm,
+        spaceBefore=8 * mm,
     )
     h2_style = ParagraphStyle(
-        'H2', fontName=_CN_FONT, fontSize=13, leading=18,
-        textColor=rl_colors.HexColor('#333333'), spaceAfter=3*mm, spaceBefore=5*mm,
+        "H2",
+        fontName=_CN_FONT,
+        fontSize=13,
+        leading=18,
+        textColor=rl_colors.HexColor("#333333"),
+        spaceAfter=3 * mm,
+        spaceBefore=5 * mm,
     )
     body_style = ParagraphStyle(
-        'Body', fontName=_CN_BODY, fontSize=9, leading=14,
-        textColor=rl_colors.HexColor('#333333'), spaceAfter=2*mm,
+        "Body",
+        fontName=_CN_BODY,
+        fontSize=9,
+        leading=14,
+        textColor=rl_colors.HexColor("#333333"),
+        spaceAfter=2 * mm,
     )
     small_style = ParagraphStyle(
-        'Small', fontName=_CN_BODY, fontSize=8, leading=11,
-        textColor=rl_colors.HexColor('#666666'), spaceAfter=1*mm,
+        "Small",
+        fontName=_CN_BODY,
+        fontSize=8,
+        leading=11,
+        textColor=rl_colors.HexColor("#666666"),
+        spaceAfter=1 * mm,
     )
 
     # ---- 汇总数据预计算 ----
@@ -1009,67 +1138,96 @@ def generate_pdf_report(output_path, detect_type, source_path,
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     # ===================== 封面页 =====================
-    elements.append(Spacer(1, 30*mm))
+    elements.append(Spacer(1, 30 * mm))
     # 顶部装饰条
     cover_header_data = [
-        [Paragraph("ANCIENT BUILDING DAMAGE DETECTION SYSTEM", ParagraphStyle(
-            'CoverEng', fontName=_CN_BODY, fontSize=9, textColor=rl_colors.HexColor('#8b7355'),
-            alignment=TA_CENTER))],
+        [
+            Paragraph(
+                "ANCIENT BUILDING DAMAGE DETECTION SYSTEM",
+                ParagraphStyle(
+                    "CoverEng",
+                    fontName=_CN_BODY,
+                    fontSize=9,
+                    textColor=rl_colors.HexColor("#8b7355"),
+                    alignment=TA_CENTER,
+                ),
+            )
+        ],
     ]
-    ct = Table(cover_header_data, colWidths=[W - 36*mm])
-    ct.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), rl_colors.HexColor('#f5f0e8')),
-        ('TOPPADDING', (0, 0), (-1, -1), 8),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-    ]))
+    ct = Table(cover_header_data, colWidths=[W - 36 * mm])
+    ct.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, -1), rl_colors.HexColor("#f5f0e8")),
+                ("TOPPADDING", (0, 0), (-1, -1), 8),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+            ]
+        )
+    )
     elements.append(ct)
 
     # 主标题区域
     title_bg_data = [
-        [Spacer(1, 6*mm)],
+        [Spacer(1, 6 * mm)],
         [Paragraph("古建筑损伤检测报告", cover_title_style)],
         [Paragraph("Ancient Building Damage Inspection Report", cover_subtitle_style)],
-        [Spacer(1, 4*mm)],
+        [Spacer(1, 4 * mm)],
     ]
-    title_table = Table(title_bg_data, colWidths=[W - 36*mm])
-    title_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), rl_colors.HexColor('#3c2415')),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-    ]))
+    title_table = Table(title_bg_data, colWidths=[W - 36 * mm])
+    title_table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, -1), rl_colors.HexColor("#3c2415")),
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ]
+        )
+    )
     elements.append(title_table)
 
-    elements.append(Spacer(1, 15*mm))
+    elements.append(Spacer(1, 15 * mm))
 
     # 封面信息
     cover_info = [
         ["报告编号", report_id],
         ["生成时间", now_str],
-        ["检测类型", {"single": "单图检测", "batch": "批量检测", "video": "视频检测", "camera": "实时摄像头"}.get(detect_type, detect_type)],
+        [
+            "检测类型",
+            {"single": "单图检测", "batch": "批量检测", "video": "视频检测", "camera": "实时摄像头"}.get(
+                detect_type, detect_type
+            ),
+        ],
         ["图片来源", str(source_path)[:80]],
         ["系统版本", "v3.0  |  YOLOv8 + PyQt5"],
     ]
     ci_table = Table(cover_info, colWidths=[80, 320])
-    ci_table.setStyle(TableStyle([
-        ('FONTNAME', (0, 0), (0, -1), _CN_FONT),
-        ('FONTNAME', (1, 0), (-1, -1), _CN_BODY),
-        ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('BACKGROUND', (0, 0), (0, -1), rl_colors.HexColor('#e8eaf6')),
-        ('TEXTCOLOR', (0, 0), (0, -1), rl_colors.HexColor('#1a237e')),
-        ('GRID', (0, 0), (-1, -1), 0.5, rl_colors.HexColor('#cccccc')),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('TOPPADDING', (0, 0), (-1, -1), 8),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-        ('LEFTPADDING', (0, 0), (-1, -1), 10),
-    ]))
+    ci_table.setStyle(
+        TableStyle(
+            [
+                ("FONTNAME", (0, 0), (0, -1), _CN_FONT),
+                ("FONTNAME", (1, 0), (-1, -1), _CN_BODY),
+                ("FONTSIZE", (0, 0), (-1, -1), 10),
+                ("BACKGROUND", (0, 0), (0, -1), rl_colors.HexColor("#e8eaf6")),
+                ("TEXTCOLOR", (0, 0), (0, -1), rl_colors.HexColor("#1a237e")),
+                ("GRID", (0, 0), (-1, -1), 0.5, rl_colors.HexColor("#cccccc")),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("TOPPADDING", (0, 0), (-1, -1), 8),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+                ("LEFTPADDING", (0, 0), (-1, -1), 10),
+            ]
+        )
+    )
     elements.append(ci_table)
-    elements.append(Spacer(1, 20*mm))
+    elements.append(Spacer(1, 20 * mm))
 
     # 封面底部
     footer_note = Paragraph(
         "<i>本报告由古建筑损伤检测系统自动生成，仅供参考，具体修复方案请咨询专业文物保护人员。</i>",
-        ParagraphStyle('FooterNote', fontName=_CN_BODY, fontSize=8, textColor=rl_colors.HexColor('#999999'), alignment=TA_CENTER))
-    elements.append(HRFlowable(width="100%", thickness=1, color=rl_colors.HexColor('#c9a87c')))
-    elements.append(Spacer(1, 3*mm))
+        ParagraphStyle(
+            "FooterNote", fontName=_CN_BODY, fontSize=8, textColor=rl_colors.HexColor("#999999"), alignment=TA_CENTER
+        ),
+    )
+    elements.append(HRFlowable(width="100%", thickness=1, color=rl_colors.HexColor("#c9a87c")))
+    elements.append(Spacer(1, 3 * mm))
     elements.append(footer_note)
 
     elements.append(PageBreak())
@@ -1086,56 +1244,71 @@ def generate_pdf_report(output_path, detect_type, source_path,
         ["保护级别", "□ 国家级  □ 省级  □ 市级  □ 未定级", "文物编号", "____________________"],
     ]
     bi_table = Table(bldg_info, colWidths=[70, 150, 70, 150])
-    bi_table.setStyle(TableStyle([
-        ('FONTNAME', (0, 0), (-1, -1), _CN_BODY),
-        ('FONTNAME', (0, 0), (0, -1), _CN_FONT),
-        ('FONTNAME', (2, 0), (2, -1), _CN_FONT),
-        ('FONTSIZE', (0, 0), (-1, -1), 9),
-        ('BACKGROUND', (0, 0), (0, -1), rl_colors.HexColor('#e8eaf6')),
-        ('BACKGROUND', (2, 0), (2, -1), rl_colors.HexColor('#e8eaf6')),
-        ('TEXTCOLOR', (0, 0), (0, -1), rl_colors.HexColor('#1a237e')),
-        ('TEXTCOLOR', (2, 0), (2, -1), rl_colors.HexColor('#1a237e')),
-        ('GRID', (0, 0), (-1, -1), 0.4, rl_colors.HexColor('#c9a87c')),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('TOPPADDING', (0, 0), (-1, -1), 8),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-    ]))
+    bi_table.setStyle(
+        TableStyle(
+            [
+                ("FONTNAME", (0, 0), (-1, -1), _CN_BODY),
+                ("FONTNAME", (0, 0), (0, -1), _CN_FONT),
+                ("FONTNAME", (2, 0), (2, -1), _CN_FONT),
+                ("FONTSIZE", (0, 0), (-1, -1), 9),
+                ("BACKGROUND", (0, 0), (0, -1), rl_colors.HexColor("#e8eaf6")),
+                ("BACKGROUND", (2, 0), (2, -1), rl_colors.HexColor("#e8eaf6")),
+                ("TEXTCOLOR", (0, 0), (0, -1), rl_colors.HexColor("#1a237e")),
+                ("TEXTCOLOR", (2, 0), (2, -1), rl_colors.HexColor("#1a237e")),
+                ("GRID", (0, 0), (-1, -1), 0.4, rl_colors.HexColor("#c9a87c")),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("TOPPADDING", (0, 0), (-1, -1), 8),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+            ]
+        )
+    )
     elements.append(bi_table)
 
-    elements.append(Spacer(1, 4*mm))
+    elements.append(Spacer(1, 4 * mm))
     elements += _make_section_header("二、综合健康评估 / Health Assessment")
 
     # 健康评分大卡片
     grade_box_data = [
-        [Paragraph(f"<font size='48' color='{health_color}'><b>{health_grade}</b></font>",
-                   ParagraphStyle('Grade', fontName=_CN_FONT, alignment=TA_CENTER)),
-         Paragraph(f"<b>综合评分：{health_score}/100</b><br/>"
-                   f"损伤总数：{total_damages} 处<br/>"
-                   f"严重损伤：{sev_counts['严重']} 处<br/>"
-                   f"风险等级：<font color='{risk_color}'><b>{risk_level}</b></font>",
-                   ParagraphStyle('GradeInfo', fontName=_CN_BODY, fontSize=11, leading=18, textColor=rl_colors.HexColor('#333333')))],
+        [
+            Paragraph(
+                f"<font size='48' color='{health_color}'><b>{health_grade}</b></font>",
+                ParagraphStyle("Grade", fontName=_CN_FONT, alignment=TA_CENTER),
+            ),
+            Paragraph(
+                f"<b>综合评分：{health_score}/100</b><br/>"
+                f"损伤总数：{total_damages} 处<br/>"
+                f"严重损伤：{sev_counts['严重']} 处<br/>"
+                f"风险等级：<font color='{risk_color}'><b>{risk_level}</b></font>",
+                ParagraphStyle(
+                    "GradeInfo", fontName=_CN_BODY, fontSize=11, leading=18, textColor=rl_colors.HexColor("#333333")
+                ),
+            ),
+        ],
     ]
     gb_table = Table(grade_box_data, colWidths=[120, 320])
-    gb_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (0, 0), rl_colors.HexColor('#f5f0e8')),
-        ('BACKGROUND', (1, 0), (1, 0), rl_colors.white),
-        ('BOX', (0, 0), (-1, -1), 2, rl_colors.HexColor('#c9a87c')),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('TOPPADDING', (0, 0), (-1, -1), 12),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
-        ('LEFTPADDING', (0, 0), (-1, -1), 12),
-    ]))
+    gb_table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (0, 0), rl_colors.HexColor("#f5f0e8")),
+                ("BACKGROUND", (1, 0), (1, 0), rl_colors.white),
+                ("BOX", (0, 0), (-1, -1), 2, rl_colors.HexColor("#c9a87c")),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("TOPPADDING", (0, 0), (-1, -1), 12),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 12),
+                ("LEFTPADDING", (0, 0), (-1, -1), 12),
+            ]
+        )
+    )
     elements.append(gb_table)
-    elements.append(Spacer(1, 2*mm))
+    elements.append(Spacer(1, 2 * mm))
     elements.append(Paragraph(f"💡 <b>评估结论：</b>{risk_text}", body_style))
 
     # ===================== 第3部分：损伤统计 =====================
-    elements.append(Spacer(1, 2*mm))
+    elements.append(Spacer(1, 2 * mm))
     elements += _make_section_header("三、损伤统计分析 / Damage Statistics")
 
     # 3.1 按类型统计
     stat_rows = [["损伤类型", "数量", "占比(%)", "平均面积(%)", "严重数量", "状态"]]
-    sev_rows_for_style = []
     type_bar_data = []
 
     for cls_name, cnt in sorted(class_counts.items(), key=lambda x: -x[1]):
@@ -1144,19 +1317,30 @@ def generate_pdf_report(output_path, detect_type, source_path,
         avg_area = round(sum(d.get("面积占比", 0) for d in cls_datas) / max(len(cls_datas), 1), 2)
         severe_cnt = sum(1 for d in cls_datas if d.get("严重程度") == "严重")
         status = "⚠ 需关注" if severe_cnt > 0 else "✅ 正常"
-        stat_rows.append([cls_name, str(cnt), f'{pct}%', f'{avg_area}%', str(severe_cnt), status])
+        stat_rows.append([cls_name, str(cnt), f"{pct}%", f"{avg_area}%", str(severe_cnt), status])
         type_bar_data.append((cls_name, cnt, pct))
 
     # 添加总计行
-    stat_rows.append(["合计", str(total_damages), "100%",
-                      f'{round(total_area_pct / max(total_damages, 1), 2)}%',
-                      str(sev_counts["严重"]), ""])
+    stat_rows.append(
+        [
+            "合计",
+            str(total_damages),
+            "100%",
+            f"{round(total_area_pct / max(total_damages, 1), 2)}%",
+            str(sev_counts["严重"]),
+            "",
+        ]
+    )
 
-    stat_table = _styled_table(stat_rows, [65, 50, 55, 80, 60, 80], sev_col=4,
-                               sev_rows=[(i, row[4]) for i, row in enumerate(stat_rows) if row[4].isdigit() and int(row[4]) > 0])
+    stat_table = _styled_table(
+        stat_rows,
+        [65, 50, 55, 80, 60, 80],
+        sev_col=4,
+        sev_rows=[(i, row[4]) for i, row in enumerate(stat_rows) if row[4].isdigit() and int(row[4]) > 0],
+    )
     elements.append(stat_table)
 
-    elements.append(Spacer(1, 3*mm))
+    elements.append(Spacer(1, 3 * mm))
 
     # 3.2 严重程度分布
     sev_data = [["严重程度", "数量", "百分比", "说明"]]
@@ -1164,21 +1348,28 @@ def generate_pdf_report(output_path, detect_type, source_path,
     for sev_name in ["轻微", "中等", "严重"]:
         cnt = sev_counts[sev_name]
         pct = round(cnt / max(total_damages, 1) * 100, 1) if total_damages > 0 else 0
-        sev_data.append([sev_name, str(cnt), f'{pct}%', sev_desc.get(sev_name, "")])
+        sev_data.append([sev_name, str(cnt), f"{pct}%", sev_desc.get(sev_name, "")])
 
-    sev_table = _styled_table(sev_data, [60, 50, 60, 200], sev_col=0,
-                               sev_rows=[(i, row[0]) for i, row in enumerate(sev_data) if i > 0])
+    sev_table = _styled_table(
+        sev_data, [60, 50, 60, 200], sev_col=0, sev_rows=[(i, row[0]) for i, row in enumerate(sev_data) if i > 0]
+    )
     elements.append(sev_table)
 
     # 3.3 空间区域分析
     if damage_data:
-        elements.append(Spacer(1, 3*mm))
+        elements.append(Spacer(1, 3 * mm))
         elements.append(Paragraph("📍 <b>空间区域分布</b>", h2_style))
         # 将图像分为9个区域 (3x3网格)
         zones = {
-            "左上": [], "上中": [], "右上": [],
-            "左中": [], "中心": [], "右中": [],
-            "左下": [], "下中": [], "右下": [],
+            "左上": [],
+            "上中": [],
+            "右上": [],
+            "左中": [],
+            "中心": [],
+            "右中": [],
+            "左下": [],
+            "下中": [],
+            "右下": [],
         }
         for d in damage_data:
             cx_val = (d["左上角X"] + d["右下角X"]) / 2
@@ -1188,9 +1379,15 @@ def generate_pdf_report(output_path, detect_type, source_path,
             zone_y = "上" if cy_val < 300 else ("下" if cy_val > 600 else "中")
             key = f"左{zone_y}" if zone_x == "左" else (f"{zone_x}" if zone_x == "中" else f"右{zone_y}")
             zone_key_map = {
-                "左上": "左上", "左中": "左中", "左下": "左下",
-                "中上": "上中", "中心": "中心", "中下": "下中",
-                "右上": "右上", "右中": "右中", "右下": "右下",
+                "左上": "左上",
+                "左中": "左中",
+                "左下": "左下",
+                "中上": "上中",
+                "中心": "中心",
+                "中下": "下中",
+                "右上": "右上",
+                "右中": "右中",
+                "右下": "右下",
             }
             key = zone_key_map.get(f"{zone_x}{zone_y}", "中心")
             if key in zones:
@@ -1204,14 +1401,14 @@ def generate_pdf_report(output_path, detect_type, source_path,
             z_severe = sum(1 for zd in zds if zd.get("严重程度") == "严重")
             z_types = set(zd.get("损伤类型", "") for zd in zds)
             density = "🟢 稀疏" if z_cnt <= 1 else ("🟡 中等" if z_cnt <= 3 else "🔴 密集")
-            zone_rows.append([zone_name, str(z_cnt), str(z_severe),
-                              ", ".join(sorted(z_types)), density])
+            zone_rows.append([zone_name, str(z_cnt), str(z_severe), ", ".join(sorted(z_types)), density])
 
         if len(zone_rows) > 1:
             zone_table = _styled_table(zone_rows, [55, 55, 55, 130, 70])
             elements.append(zone_table)
-            elements.append(Paragraph(
-                "<i>注：以上区域划分为估算值，基于检测框坐标在图像中的相对位置。</i>", small_style))
+            elements.append(
+                Paragraph("<i>注：以上区域划分为估算值，基于检测框坐标在图像中的相对位置。</i>", small_style)
+            )
 
     elements.append(PageBreak())
 
@@ -1221,39 +1418,43 @@ def generate_pdf_report(output_path, detect_type, source_path,
     if result_img is not None:
         img_buf = BytesIO()
         pil_img = Image.fromarray(result_img)
-        pil_img.save(img_buf, format='JPEG', quality=88)
+        pil_img.save(img_buf, format="JPEG", quality=88)
         img_buf.seek(0)
-        rl_img = RLImage(img_buf, width=460, height=345, kind='proportional')
+        rl_img = RLImage(img_buf, width=460, height=345, kind="proportional")
         elements.append(rl_img)
         elements.append(Paragraph("<i>图1：检测结果标注图（不同颜色表示不同损伤类型）</i>", small_style))
 
     if heatmap_img is not None:
-        elements.append(Spacer(1, 4*mm))
+        elements.append(Spacer(1, 4 * mm))
         hm_buf = BytesIO()
         pil_hm = Image.fromarray(heatmap_img)
-        pil_hm.save(hm_buf, format='JPEG', quality=88)
+        pil_hm.save(hm_buf, format="JPEG", quality=88)
         hm_buf.seek(0)
-        rl_hm = RLImage(hm_buf, width=460, height=345, kind='proportional')
+        rl_hm = RLImage(hm_buf, width=460, height=345, kind="proportional")
         elements.append(rl_hm)
         elements.append(Paragraph("<i>图2：损伤热力分布图（红色=高密度，蓝色=低密度）</i>", small_style))
 
     # 图例说明
-    elements.append(Spacer(1, 3*mm))
+    elements.append(Spacer(1, 3 * mm))
     legend_data = [
         ["颜色", "损伤类型", "颜色", "损伤类型", "颜色", "损伤类型"],
         ["🟢 绿色", "裂缝 (CRACK)", "🔴 红色", "风化 (W_E)", "🟠 橙色", "碱蚀 (ALKALI)"],
         ["🟣 紫色", "缺失 (MISS)", "🔵 蓝色", "苔藓 (MOSS)", "", ""],
     ]
     legend_table = Table(legend_data, colWidths=[80, 100, 80, 110, 80, 90])
-    legend_table.setStyle(TableStyle([
-        ('FONTNAME', (0, 0), (-1, -1), _CN_BODY),
-        ('FONTSIZE', (0, 0), (-1, -1), 8),
-        ('BACKGROUND', (0, 0), (-1, 0), rl_colors.HexColor('#eeeeee')),
-        ('GRID', (0, 0), (-1, -1), 0.3, rl_colors.HexColor('#dddddd')),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('TOPPADDING', (0, 0), (-1, -1), 3),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
-    ]))
+    legend_table.setStyle(
+        TableStyle(
+            [
+                ("FONTNAME", (0, 0), (-1, -1), _CN_BODY),
+                ("FONTSIZE", (0, 0), (-1, -1), 8),
+                ("BACKGROUND", (0, 0), (-1, 0), rl_colors.HexColor("#eeeeee")),
+                ("GRID", (0, 0), (-1, -1), 0.3, rl_colors.HexColor("#dddddd")),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("TOPPADDING", (0, 0), (-1, -1), 3),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+            ]
+        )
+    )
     elements.append(legend_table)
 
     elements.append(PageBreak())
@@ -1280,13 +1481,29 @@ def generate_pdf_report(output_path, detect_type, source_path,
             elem_group = [
                 Paragraph(
                     f"<b>{cls_name}</b> — <font color='{health_color if sev == '严重' else '#333333'}'>{sev} ({info['count']}处)</font>",
-                    ParagraphStyle('AdviceTitle', fontName=_CN_FONT, fontSize=11, textColor=rl_colors.HexColor('#1a237e'),
-                                   spaceAfter=2*mm, spaceBefore=3*mm)),
-                Paragraph(f"📝 {info['advice']}", ParagraphStyle(
-                    'AdviceBody', fontName=_CN_BODY, fontSize=9, leading=14,
-                    textColor=rl_colors.HexColor('#555555'), spaceAfter=4*mm,
-                    leftIndent=10, borderPadding=6,
-                    backColor=rl_colors.HexColor(bg))),
+                    ParagraphStyle(
+                        "AdviceTitle",
+                        fontName=_CN_FONT,
+                        fontSize=11,
+                        textColor=rl_colors.HexColor("#1a237e"),
+                        spaceAfter=2 * mm,
+                        spaceBefore=3 * mm,
+                    ),
+                ),
+                Paragraph(
+                    f"📝 {info['advice']}",
+                    ParagraphStyle(
+                        "AdviceBody",
+                        fontName=_CN_BODY,
+                        fontSize=9,
+                        leading=14,
+                        textColor=rl_colors.HexColor("#555555"),
+                        spaceAfter=4 * mm,
+                        leftIndent=10,
+                        borderPadding=6,
+                        backColor=rl_colors.HexColor(bg),
+                    ),
+                ),
             ]
             elements.extend(elem_group)
     else:
@@ -1304,17 +1521,19 @@ def generate_pdf_report(output_path, detect_type, source_path,
         for i, d in enumerate(damage_data):
             sev = d.get("严重程度", "")
             cls_name = d.get("损伤类型", "")
-            coord_str = f'{d.get("左上角X", "")},{d.get("左上角Y", "")},{d.get("右下角X", "")},{d.get("右下角Y", "")}'
+            coord_str = f"{d.get('左上角X', '')},{d.get('左上角Y', '')},{d.get('右下角X', '')},{d.get('右下角Y', '')}"
             advice_short = get_advice(cls_name, sev)[:60] + "..."
-            detail_rows.append([
-                str(i + 1),
-                cls_name,
-                sev,
-                f'{d.get("置信度", 0):.2f}',
-                f'{d.get("面积占比", 0):.2f}',
-                coord_str,
-                advice_short,
-            ])
+            detail_rows.append(
+                [
+                    str(i + 1),
+                    cls_name,
+                    sev,
+                    f"{d.get('置信度', 0):.2f}",
+                    f"{d.get('面积占比', 0):.2f}",
+                    coord_str,
+                    advice_short,
+                ]
+            )
             sev_detail_rows.append((i + 1, sev))
 
         detail_table = _styled_table(
@@ -1327,7 +1546,7 @@ def generate_pdf_report(output_path, detect_type, source_path,
         elements.append(detail_table)
 
         # 页脚注释
-        elements.append(Spacer(1, 4*mm))
+        elements.append(Spacer(1, 4 * mm))
         elements.append(Paragraph("<i>注：置信度反映模型对该检测结果的确定程度，仅作参考。</i>", small_style))
         elements.append(Paragraph("<i>坐标格式为 (左上角X, 左上角Y, 右下角X, 右下角Y)，单位：像素。</i>", small_style))
     else:
@@ -1340,31 +1559,39 @@ def generate_pdf_report(output_path, detect_type, source_path,
     risk_data = [
         ["评估项目", "评估结果", "建议措施"],
         ["整体健康等级", f"{health_grade} 级 ({health_score}分)", risk_text],
-        ["严重损伤占比", f'{round(severe_ratio * 100, 1)}%',
-         "占比 >= 30% 应紧急响应" if severe_ratio >= 0.3 else "暂不需要紧急响应"],
-        ["损伤类型多样性", f'{len(class_counts)} 种',
-         "多种损伤共存需综合施策" if len(class_counts) >= 3 else "损伤类型较单一"],
+        [
+            "严重损伤占比",
+            f"{round(severe_ratio * 100, 1)}%",
+            "占比 >= 30% 应紧急响应" if severe_ratio >= 0.3 else "暂不需要紧急响应",
+        ],
+        [
+            "损伤类型多样性",
+            f"{len(class_counts)} 种",
+            "多种损伤共存需综合施策" if len(class_counts) >= 3 else "损伤类型较单一",
+        ],
     ]
 
     # 最高频损伤类型
     if class_counts:
         top_cls = max(class_counts, key=class_counts.get)
         top_cls_severe = sum(1 for d in damage_data if d.get("损伤类型") == top_cls and d.get("严重程度") == "严重")
-        risk_data.append([
-            f"主要损伤类型", f"{top_cls} ({class_counts[top_cls]}处)",
-            f"重点关注{top_cls}类损伤{'，含严重' + str(top_cls_severe) + '处' if top_cls_severe > 0 else ''}"
-        ])
+        risk_data.append(
+            [
+                "主要损伤类型",
+                f"{top_cls} ({class_counts[top_cls]}处)",
+                f"重点关注{top_cls}类损伤{'，含严重' + str(top_cls_severe) + '处' if top_cls_severe > 0 else ''}",
+            ]
+        )
 
     # 优先修复建议
     if sev_counts["严重"] > 0:
         severe_cls = list(set(d.get("损伤类型") for d in damage_data if d.get("严重程度") == "严重"))
-        risk_data.append(["优先修复类型", ", ".join(severe_cls),
-                          "以上类型含严重损伤，列入优先修复清单"])
+        risk_data.append(["优先修复类型", ", ".join(severe_cls), "以上类型含严重损伤，列入优先修复清单"])
 
     risk_table = _styled_table(risk_data, [90, 130, 210], font_size=9)
     elements.append(risk_table)
 
-    elements.append(Spacer(1, 4*mm))
+    elements.append(Spacer(1, 4 * mm))
     elements.append(Paragraph("<b>建议后续行动：</b>", h2_style))
     next_steps = [
         "1. 对标注为「严重」的损伤区域，建议在30天内安排专业人员进行现场复核。",
@@ -1377,7 +1604,7 @@ def generate_pdf_report(output_path, detect_type, source_path,
         elements.append(Paragraph(step, body_style))
 
     # ===================== 第8部分：参考标准 =====================
-    elements.append(Spacer(1, 6*mm))
+    elements.append(Spacer(1, 6 * mm))
     elements += _make_section_header("八、参考标准 / Reference Standards")
 
     ref_data = [
@@ -1391,37 +1618,50 @@ def generate_pdf_report(output_path, detect_type, source_path,
     ]
     ref_table = _styled_table(ref_data, [110, 220, 110], font_size=8)
     elements.append(ref_table)
-    elements.append(Spacer(1, 3*mm))
+    elements.append(Spacer(1, 3 * mm))
     elements.append(Paragraph("<i>注：以上标准供参考，实际修复应遵循当地文物主管部门的最新规定。</i>", small_style))
 
     # ===================== 页尾 =====================
-    elements.append(Spacer(1, 10*mm))
-    elements.append(HRFlowable(width="100%", thickness=1.5, color=rl_colors.HexColor('#1a237e')))
-    elements.append(Spacer(1, 2*mm))
+    elements.append(Spacer(1, 10 * mm))
+    elements.append(HRFlowable(width="100%", thickness=1.5, color=rl_colors.HexColor("#1a237e")))
+    elements.append(Spacer(1, 2 * mm))
 
     # 免责声明
     disclaimer_style = ParagraphStyle(
-        'Disclaimer', fontName=_CN_BODY, fontSize=7, leading=10,
-        textColor=rl_colors.HexColor('#aaaaaa'), alignment=TA_CENTER, spaceAfter=2*mm,
+        "Disclaimer",
+        fontName=_CN_BODY,
+        fontSize=7,
+        leading=10,
+        textColor=rl_colors.HexColor("#aaaaaa"),
+        alignment=TA_CENTER,
+        spaceAfter=2 * mm,
     )
-    elements.append(Paragraph(
-        "免责声明：本报告由 AI 自动检测系统生成，结果仅供参考。检测结果受图像质量、光照条件、拍摄角度等因素影响，"
-        "可能与实际情况存在偏差。最终诊断结论应由注册文物保护工程师结合现场勘察结果出具。",
-        disclaimer_style))
-    elements.append(Paragraph(
-        f"报告编号：{report_id}  |  生成时间：{now_str}  |  系统：古建筑损伤检测系统 v3.0  |  页码：1/1",
-        ParagraphStyle('Footer', fontName=_CN_BODY, fontSize=7, textColor=rl_colors.HexColor('#999999'), alignment=TA_CENTER)))
+    elements.append(
+        Paragraph(
+            "免责声明：本报告由 AI 自动检测系统生成，结果仅供参考。检测结果受图像质量、光照条件、拍摄角度等因素影响，"
+            "可能与实际情况存在偏差。最终诊断结论应由注册文物保护工程师结合现场勘察结果出具。",
+            disclaimer_style,
+        )
+    )
+    elements.append(
+        Paragraph(
+            f"报告编号：{report_id}  |  生成时间：{now_str}  |  系统：古建筑损伤检测系统 v3.0  |  页码：1/1",
+            ParagraphStyle(
+                "Footer", fontName=_CN_BODY, fontSize=7, textColor=rl_colors.HexColor("#999999"), alignment=TA_CENTER
+            ),
+        )
+    )
 
     # ========== 生成 PDF ==========
     doc.build(elements)
 
 
 class SavePdfThread(QThread):
-    """PDF 生成线程，避免阻塞 UI"""
+    """PDF 生成线程，避免阻塞 UI."""
+
     finished = pyqtSignal(bool, str)
 
-    def __init__(self, detect_type, source_path, damage_data,
-                 result_img, heatmap_img, save_path):
+    def __init__(self, detect_type, source_path, damage_data, result_img, heatmap_img, save_path):
         super().__init__()
         self.detect_type = detect_type
         self.source_path = source_path
@@ -1433,12 +1673,11 @@ class SavePdfThread(QThread):
     def run(self):
         try:
             generate_pdf_report(
-                self.save_path, self.detect_type, self.source_path,
-                self.damage_data, self.result_img, self.heatmap_img
+                self.save_path, self.detect_type, self.source_path, self.damage_data, self.result_img, self.heatmap_img
             )
             self.finished.emit(True, f"PDF报告已生成：\n{self.save_path}")
         except Exception as e:
-            self.finished.emit(False, f"PDF生成失败：{str(e)}")
+            self.finished.emit(False, f"PDF生成失败：{e!s}")
 
 
 # ---------------------- 主窗口 ----------------------
@@ -1518,9 +1757,9 @@ class DamageDetectionGUI(QMainWindow):
         self.current_detect_type = ""
 
         # 热力图相关状态
-        self.heatmap_mode = False          # 是否处于热力图显示模式
+        self.heatmap_mode = False  # 是否处于热力图显示模式
         self.original_detected_img = None  # 原始检测图（用于切换回检测框模式）
-        self.heatmap_img = None            # 热力图缓存
+        self.heatmap_img = None  # 热力图缓存
 
         # 用于批量保存结果的属性
         self.batch_result_images = None
@@ -1537,7 +1776,11 @@ class DamageDetectionGUI(QMainWindow):
 
         self.available_models = self._scan_models()
         BASE = os.path.dirname(os.path.abspath(__file__))
-        self.current_model_path = self.available_models[0][0] if self.available_models else os.path.join(BASE, "runs/detect/train6/weights/best.pt")
+        self.current_model_path = (
+            self.available_models[0][0]
+            if self.available_models
+            else os.path.join(BASE, "runs/detect/train6/weights/best.pt")
+        )
         self.model = self.load_yolo_model(self.current_model_path)
         if self.model is None:
             QMessageBox.warning(self, "错误", "模型加载失败！")
@@ -1553,8 +1796,9 @@ class DamageDetectionGUI(QMainWindow):
         self.move(win_rect.left(), 30)
 
     def _scan_models(self):
-        """扫描项目目录下所有权重文件"""
+        """扫描项目目录下所有权重文件."""
         import glob
+
         BASE = os.path.dirname(os.path.abspath(__file__))
         models = []
         for p in glob.glob(os.path.join(BASE, "*.pt")):
@@ -1562,7 +1806,12 @@ class DamageDetectionGUI(QMainWindow):
             models.append((p, os.path.basename(p), size_mb))
         for p in sorted(glob.glob(os.path.join(BASE, "runs/detect/*/weights/best.pt"))):
             size_mb = os.path.getsize(p) / 1024 / 1024
-            label = p.replace(BASE + os.sep, "").replace("\\", "/").replace("runs/detect/", "").replace("/weights/best.pt", "")
+            label = (
+                p.replace(BASE + os.sep, "")
+                .replace("\\", "/")
+                .replace("runs/detect/", "")
+                .replace("/weights/best.pt", "")
+            )
             models.append((p, f"train/{label}", size_mb))
         return models
 
@@ -1574,11 +1823,11 @@ class DamageDetectionGUI(QMainWindow):
             return None
 
     def switch_model(self, index):
-        """切换模型权重"""
+        """切换模型权重."""
         if index < 0 or index >= len(self.available_models):
             return
         path, label, size = self.available_models[index]
-        self.info_text.append("加载模型：%s (%.1f MB)..." % (label, size))
+        self.info_text.append(f"加载模型：{label} ({size:.1f} MB)...")
         self.current_model_path = path
         self.model = self.load_yolo_model(path)
         if self.model:
@@ -1632,7 +1881,7 @@ class DamageDetectionGUI(QMainWindow):
             ("severe", "严重", "#e74c3c"),
         ]
         for key, label, accent in card_configs:
-            card = QLabel("0\n%s" % label)
+            card = QLabel(f"0\n{label}")
             card.setObjectName("statsCard")
             card.setAlignment(Qt.AlignCenter)
             card.setMinimumHeight(60)
@@ -1641,11 +1890,11 @@ class DamageDetectionGUI(QMainWindow):
                 "QLabel#statsCard {"
                 "  background-color: #ffffff;"
                 "  border-radius: 10px;"
-                "  border: 2px solid %s;"
-                "  color: %s;"
+                f"  border: 2px solid {accent};"
+                f"  color: {accent};"
                 "  font-size: 16px; font-weight: bold;"
                 "  padding: 6px;"
-                "}" % (accent, accent)
+                "}"
             )
             card.setVisible(False)
             self.stats_cards[key] = card
@@ -1661,11 +1910,12 @@ class DamageDetectionGUI(QMainWindow):
 
         # -- 模型选择 --
         from PyQt5.QtWidgets import QComboBox
+
         group_model = QGroupBox("🤖 模型切换")
         g_model_layout = QHBoxLayout(group_model)
         self.combo_model = QComboBox()
         for path, label, size in self.available_models:
-            self.combo_model.addItem("%s (%.1f MB)" % (label, size))
+            self.combo_model.addItem(f"{label} ({size:.1f} MB)")
         self.combo_model.currentIndexChanged.connect(self.switch_model)
         self.combo_model.setToolTip("切换检测模型权重，不同模型精度和速度不同")
         g_model_layout.addWidget(self.combo_model)
@@ -1827,11 +2077,13 @@ class DamageDetectionGUI(QMainWindow):
 
         # -- 状态栏 --
         from PyQt5.QtWidgets import QStatusBar
+
         self.status_bar = QStatusBar()
         self.status_bar.setStyleSheet(
             "QStatusBar { background-color: #3c2415; color: #efe8db; font-size: 11px;"
             "border-top: 2px solid #c9a87c; padding: 2px 8px; }"
-            "QStatusBar::item { border: none; }")
+            "QStatusBar::item { border: none; }"
+        )
         self.status_label = QLabel("")
         self.status_label.setStyleSheet("color: #efe8db; font-size: 11px;")
         self.status_bar.addWidget(self.status_label)
@@ -1839,18 +2091,19 @@ class DamageDetectionGUI(QMainWindow):
         self._update_status("就绪")
 
     def _update_status(self, text=""):
-        """更新状态栏"""
+        """更新状态栏."""
         import torch
+
         gpu_name = torch.cuda.get_device_name(0) if torch.cuda.is_available() else "CPU"
-        model_label = os.path.basename(self.current_model_path) if hasattr(self, 'current_model_path') else "N/A"
-        status = "🤖 %s | 💻 %s | %s" % (model_label, gpu_name, text)
+        model_label = os.path.basename(self.current_model_path) if hasattr(self, "current_model_path") else "N/A"
+        status = f"🤖 {model_label} | 💻 {gpu_name} | {text}"
         self.status_label.setText(status)
 
     def get_conf_threshold(self):
         return self.conf_spin.value()
 
     def update_stats_cards(self, data):
-        """更新统计卡片显示"""
+        """更新统计卡片显示."""
         sev_counts = {"轻微": 0, "中等": 0, "严重": 0}
         for d in data:
             sev = d.get("严重程度", "")
@@ -1871,7 +2124,7 @@ class DamageDetectionGUI(QMainWindow):
             card.setVisible(has_data)
 
     def hide_stats_cards(self):
-        """隐藏所有统计卡片"""
+        """隐藏所有统计卡片."""
         for card in self.stats_cards.values():
             card.setVisible(False)
 
@@ -1887,7 +2140,7 @@ class DamageDetectionGUI(QMainWindow):
         if urls:
             path = urls[0].toLocalFile()
             ext = os.path.splitext(path)[1].lower()
-            if ext in ('.jpg', '.jpeg', '.png', '.bmp'):
+            if ext in (".jpg", ".jpeg", ".png", ".bmp"):
                 self.reset_ui()
                 self.current_detect_type = "single"
                 self.current_path = path
@@ -1921,11 +2174,11 @@ class DamageDetectionGUI(QMainWindow):
 
     # ---------- 摄像头预警 ----------
     def _flash_alert(self, severe_count):
-        """检测到严重损伤时闪烁红框"""
+        """检测到严重损伤时闪烁红框."""
         orig_style = self.result_label.styleSheet()
-        self.result_label.setStyleSheet(
-            orig_style + " border: 3px solid #e74c3c;")
+        self.result_label.setStyleSheet(orig_style + " border: 3px solid #e74c3c;")
         from PyQt5.QtCore import QTimer
+
         QTimer.singleShot(400, lambda: self.result_label.setStyleSheet(orig_style))
         self.info_text.append("⚠️ 检测到 %d 处严重损伤！" % severe_count)
 
@@ -1956,7 +2209,7 @@ class DamageDetectionGUI(QMainWindow):
         if not folder:
             return
         self.current_path = folder
-        self.info_text.setText("批量检测：%s" % folder)
+        self.info_text.setText(f"批量检测：{folder}")
         self.progress_bar.setVisible(True)
         self.progress_bar.setRange(0, 0)
         self.start_detection("batch", folder)
@@ -2043,8 +2296,8 @@ class DamageDetectionGUI(QMainWindow):
             sev_counts[d.get("严重程度", "")] += 1
         self.info_text.setText(
             "✅ 批量完成，共检测到 %d 处损伤\n"
-            "📊 轻微 %d | 中等 %d | 严重 %d" % (
-                len(data), sev_counts["轻微"], sev_counts["中等"], sev_counts["严重"]))
+            "📊 轻微 %d | 中等 %d | 严重 %d" % (len(data), sev_counts["轻微"], sev_counts["中等"], sev_counts["严重"])
+        )
         self.btn_save_excel.setEnabled(len(data) > 0)
         self.btn_heatmap.setEnabled(len(data) > 0)
         self.btn_pdf.setEnabled(len(data) > 0)
@@ -2067,8 +2320,8 @@ class DamageDetectionGUI(QMainWindow):
             sev_counts[d.get("严重程度", "")] += 1
         self.info_text.setText(
             "✅ 检测结束，共 %d 处损伤\n"
-            "📊 轻微 %d | 中等 %d | 严重 %d" % (
-                len(data), sev_counts["轻微"], sev_counts["中等"], sev_counts["严重"]))
+            "📊 轻微 %d | 中等 %d | 严重 %d" % (len(data), sev_counts["轻微"], sev_counts["中等"], sev_counts["严重"])
+        )
         # 从检测线程获取视频帧数据
         if self.detect_thread:
             self.video_frames = self.detect_thread.video_frames
@@ -2077,7 +2330,7 @@ class DamageDetectionGUI(QMainWindow):
         self.btn_save_img.setEnabled(True)  # 允许保存视频
 
     def _build_heatmap(self):
-        """根据 all_damage_data 与当前路径/帧生成热力图并缓存"""
+        """根据 all_damage_data 与当前路径/帧生成热力图并缓存."""
         try:
             img_rgb = None
             if self.current_detect_type == "single" and os.path.isfile(self.current_path):
@@ -2107,7 +2360,7 @@ class DamageDetectionGUI(QMainWindow):
                 conf = d["置信度"]
                 rx, ry = max(bw // 2, 15), max(bh // 2, 15)
                 y_grid, x_grid = np.ogrid[:h, :w]
-                dist_sq = (x_grid - cx) ** 2 / (rx ** 2) + (y_grid - cy) ** 2 / (ry ** 2)
+                dist_sq = (x_grid - cx) ** 2 / (rx**2) + (y_grid - cy) ** 2 / (ry**2)
                 heatmap += (np.exp(-dist_sq / 2) * conf).astype(np.float32)
 
             if heatmap.max() > 0:
@@ -2122,7 +2375,7 @@ class DamageDetectionGUI(QMainWindow):
             self.heatmap_img = None
 
     def toggle_heatmap(self):
-        """切换热力图显示模式"""
+        """切换热力图显示模式."""
         if self.heatmap_mode:
             self.heatmap_mode = False
             self.btn_heatmap.setText("🔥 热力图")
@@ -2175,13 +2428,11 @@ class DamageDetectionGUI(QMainWindow):
                 QMessageBox.warning(self, "提示", "没有可保存的检测结果视频帧")
                 return
             default_path = "detection_result.mp4"
-            path, _ = QFileDialog.getSaveFileName(self, "保存检测视频", default_path,
-                                                  "MP4 (*.mp4);;AVI (*.avi)")
+            path, _ = QFileDialog.getSaveFileName(self, "保存检测视频", default_path, "MP4 (*.mp4);;AVI (*.avi)")
             if not path:
                 return
             self.btn_save_img.setEnabled(False)
-            self.save_img_thread = SaveVideoThread(self.video_frames, self.video_fps,
-                                                   self.video_size, path)
+            self.save_img_thread = SaveVideoThread(self.video_frames, self.video_fps, self.video_size, path)
             self.save_img_thread.finish_signal.connect(self.on_save_img_finish)
             self.save_img_thread.start()
 
@@ -2199,8 +2450,7 @@ class DamageDetectionGUI(QMainWindow):
             QMessageBox.warning(self, "提示", "没有可导出的数据")
             return
 
-        path, _ = QFileDialog.getSaveFileName(self, "导出Excel",
-                                             "古建筑损伤检测表.xlsx", "*.xlsx")
+        path, _ = QFileDialog.getSaveFileName(self, "导出Excel", "古建筑损伤检测表.xlsx", "*.xlsx")
         if not path:
             return
 
@@ -2221,36 +2471,37 @@ class DamageDetectionGUI(QMainWindow):
             QMessageBox.warning(self, "失败", msg)
 
     def show_model_chart(self):
-        """显示模型性能对比图"""
+        """显示模型性能对比图."""
         try:
             import matplotlib
-            matplotlib.use('Qt5Agg')
+
+            matplotlib.use("Qt5Agg")
             import matplotlib.pyplot as plt
 
             # 模拟数据（实际应从验证结果读取）
-            models = ['yolov8n', 'train', 'train2', 'train3', 'train6']
+            models = ["yolov8n", "train", "train2", "train3", "train6"]
             map50 = [0.68, 0.71, 0.73, 0.72, 0.77]
             precision = [0.72, 0.74, 0.76, 0.75, 0.80]
             recall = [0.63, 0.67, 0.70, 0.69, 0.74]
 
             fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
-            fig.suptitle('Model Performance Comparison / 模型性能对比', fontsize=14, fontweight='bold')
+            fig.suptitle("Model Performance Comparison / 模型性能对比", fontsize=14, fontweight="bold")
 
             x = range(len(models))
-            colors = ['#c0392b', '#e67e22', '#f39c12', '#27ae60', '#2471a3']
+            colors = ["#c0392b", "#e67e22", "#f39c12", "#27ae60", "#2471a3"]
 
-            ax1.bar(x, map50, color=colors, edgecolor='white')
-            ax1.set_title('mAP50')
+            ax1.bar(x, map50, color=colors, edgecolor="white")
+            ax1.set_title("mAP50")
             ax1.set_xticks(x)
             ax1.set_xticklabels(models, rotation=30)
             ax1.set_ylim(0, 1)
             for i, v in enumerate(map50):
-                ax1.text(i, v + 0.02, f'{v:.2f}', ha='center', fontsize=9)
+                ax1.text(i, v + 0.02, f"{v:.2f}", ha="center", fontsize=9)
 
             w = 0.3
-            ax2.bar([i - w/2 for i in x], precision, w, label='Precision', color='#c0392b')
-            ax2.bar([i + w/2 for i in x], recall, w, label='Recall', color='#2471a3')
-            ax2.set_title('Precision vs Recall')
+            ax2.bar([i - w / 2 for i in x], precision, w, label="Precision", color="#c0392b")
+            ax2.bar([i + w / 2 for i in x], recall, w, label="Recall", color="#2471a3")
+            ax2.set_title("Precision vs Recall")
             ax2.set_xticks(x)
             ax2.set_xticklabels(models, rotation=30)
             ax2.set_ylim(0, 1)
@@ -2259,10 +2510,10 @@ class DamageDetectionGUI(QMainWindow):
             plt.tight_layout()
             plt.show()
         except Exception as e:
-            QMessageBox.warning(self, "提示", f"无法显示图表：{str(e)}")
+            QMessageBox.warning(self, "提示", f"无法显示图表：{e!s}")
 
     def save_pdf(self):
-        """导出 PDF 检测报告（批量模式每图独立一份）"""
+        """导出 PDF 检测报告（批量模式每图独立一份）."""
         if not self.all_damage_data and self.current_detect_type != "batch":
             QMessageBox.warning(self, "提示", "没有可导出的数据")
             return
@@ -2277,10 +2528,12 @@ class DamageDetectionGUI(QMainWindow):
 
             class BatchPdfThread(QThread):
                 finished = pyqtSignal(bool, str)
+
                 def __init__(self, parent_window, folder):
                     super().__init__()
                     self.parent = parent_window
                     self.folder = folder
+
                 def run(self):
                     try:
                         count = 0
@@ -2290,13 +2543,13 @@ class DamageDetectionGUI(QMainWindow):
                                 continue
                             name = os.path.splitext(fname)[0]
                             pdf_path = os.path.join(self.folder, f"{name}_report.pdf")
-                            generate_pdf_report(pdf_path, "single",
-                                os.path.join(self.parent.current_path, fname),
-                                data, img_rgb)
+                            generate_pdf_report(
+                                pdf_path, "single", os.path.join(self.parent.current_path, fname), data, img_rgb
+                            )
                             count += 1
                         self.finished.emit(True, f"已生成 {count} 份PDF报告到：\n{self.folder}")
                     except Exception as e:
-                        self.finished.emit(False, f"批量PDF失败：{str(e)}")
+                        self.finished.emit(False, f"批量PDF失败：{e!s}")
 
             self.save_pdf_thread = BatchPdfThread(self, folder)
             self.save_pdf_thread.finished.connect(self.on_pdf_finished)
@@ -2304,7 +2557,7 @@ class DamageDetectionGUI(QMainWindow):
             return
 
         # 单图模式
-        result_img = (self.heatmap_img if self.heatmap_mode else self.detected_img)
+        result_img = self.heatmap_img if self.heatmap_mode else self.detected_img
         heatmap_for_report = self.heatmap_img
 
         default_path = f"古建筑损伤检测报告_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
@@ -2316,8 +2569,7 @@ class DamageDetectionGUI(QMainWindow):
         self.info_text.append("正在生成PDF报告，请稍候...")
 
         self.save_pdf_thread = SavePdfThread(
-            self.current_detect_type, self.current_path,
-            self.all_damage_data, result_img, heatmap_for_report, path
+            self.current_detect_type, self.current_path, self.all_damage_data, result_img, heatmap_for_report, path
         )
         self.save_pdf_thread.finished.connect(self.on_pdf_finished)
         self.save_pdf_thread.start()
@@ -2351,7 +2603,7 @@ class DamageDetectionGUI(QMainWindow):
     def _check_compare_ready(self):
         if self.compare_before_path and self.compare_after_path:
             self.btn_compare.setEnabled(True)
-            self.lbl_comp_status.setText("✅ 两张图片已就绪，点击\"开始对比\"")
+            self.lbl_comp_status.setText('✅ 两张图片已就绪，点击"开始对比"')
         else:
             self.lbl_comp_status.setText("请先选择前后两张图片")
 
@@ -2369,8 +2621,7 @@ class DamageDetectionGUI(QMainWindow):
             self._show_img_in_label(cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB), self.origin_label)
 
         self.compare_thread = CompareThread(
-            self.model, self.compare_before_path, self.compare_after_path,
-            self.get_conf_threshold()
+            self.model, self.compare_before_path, self.compare_after_path, self.get_conf_threshold()
         )
         self.compare_thread.progress_signal.connect(self.on_compare_progress)
         self.compare_thread.finish_signal.connect(self.on_compare_finished)
@@ -2399,8 +2650,7 @@ class DamageDetectionGUI(QMainWindow):
             QMessageBox.warning(self, "提示", "没有对比结果可保存")
             return
         default = "damage_comparison_result.jpg"
-        path, _ = QFileDialog.getSaveFileName(self, "保存对比图", default,
-                                              "JPG (*.jpg);;PNG (*.png)")
+        path, _ = QFileDialog.getSaveFileName(self, "保存对比图", default, "JPG (*.jpg);;PNG (*.png)")
         if not path:
             return
         try:
@@ -2408,7 +2658,7 @@ class DamageDetectionGUI(QMainWindow):
             img.save(path)
             QMessageBox.information(self, "成功", f"对比图已保存：\n{path}")
         except Exception as e:
-            QMessageBox.warning(self, "失败", f"保存失败：{str(e)}")
+            QMessageBox.warning(self, "失败", f"保存失败：{e!s}")
 
     def reset_ui(self):
         if self.detect_thread and self.detect_thread.is_running:
@@ -2463,13 +2713,15 @@ if __name__ == "__main__":
     app.setFont(font)
 
     # -- 启动闪屏 --
-    from PyQt5.QtWidgets import QSplashScreen
     from PyQt5.QtCore import Qt as QtCore_Qt_splash
+    from PyQt5.QtWidgets import QSplashScreen
+
     splash_img = QPixmap(500, 280)
     splash_img.fill(QtCore_Qt_splash.white)
     splash_painter = None
     try:
-        from PyQt5.QtGui import QPainter, QColor, QPen
+        from PyQt5.QtGui import QColor, QPainter, QPen
+
         splash_painter = QPainter(splash_img)
         splash_painter.fillRect(0, 0, 500, 280, QColor("#3c2415"))
         splash_painter.setPen(QPen(QColor("#d4a574"), 2))
@@ -2501,6 +2753,7 @@ if __name__ == "__main__":
 
     # 闪屏停留 2 秒
     import time
+
     start = time.time()
     while time.time() - start < 2.0:
         app.processEvents()
