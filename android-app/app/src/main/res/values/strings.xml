@@ -1,0 +1,20 @@
+<resources>
+    <string name="app_name">古建损伤检测</string>
+    <string name="tab_detect">检测</string>
+    <string name="tab_history">记录</string>
+    <string name="tab_settings">设置</string>
+    <string name="btn_capture">拍照检测</string>
+    <string name="btn_gallery">相册</string>
+    <string name="btn_flip">翻转</string>
+    <string name="hint_aim">对准墙面，保持光线充足</string>
+    <string name="label_total">总数</string>
+    <string name="label_mild">轻微</string>
+    <string name="label_medium">中等</string>
+    <string name="label_severe">严重</string>
+    <string name="save">保存</string>
+    <string name="share">分享</string>
+    <string name="export_all">导出全部记录</string>
+    <string name="clear_all">清空记录</string>
+    <string name="threshold">检测阈值</string>
+    <string name="model_select">模型选择</string>
+</resources>

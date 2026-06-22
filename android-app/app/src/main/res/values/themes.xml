@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.AncientGuard" parent="Theme.Material3.Light.NoActionBar">
+        <item name="colorPrimary">@color/cinnabar_red</item>
+        <item name="colorOnPrimary">@color/card_bg</item>
+        <item name="colorSurface">@color/paper_bg</item>
+        <item name="colorOnSurface">@color/ink_black</item>
+    </style>
+</resources>

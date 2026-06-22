@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    app:startDestination="@id/cameraFragment"
+    tools:ignore="NewerVersionAvailable">
+
+    <fragment
+        android:id="@+id/cameraFragment"
+        android:name="com.ancientguard.app.ui.CameraFragment"
+        android:label="CameraFragment">
+        <action android:id="@+id/action_camera_to_result" app:destination="@id/resultFragment">
+            <argument android:name="imagePath" app:argType="string" />
+            <argument android:name="isAsset" app:argType="boolean" android:defaultValue="false" />
+        </action>
+    </fragment>
+
+    <fragment
+        android:id="@+id/resultFragment"
+        android:name="com.ancientguard.app.ui.ResultFragment"
+        android:label="ResultFragment">
+        <argument android:name="imagePath" app:argType="string" />
+        <argument android:name="isAsset" app:argType="boolean" android:defaultValue="false" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/historyFragment"
+        android:name="com.ancientguard.app.ui.HistoryFragment"
+        android:label="HistoryFragment">
+        <action android:id="@+id/action_history_to_result" app:destination="@id/resultFragment">
+            <argument android:name="imagePath" app:argType="string" />
+            <argument android:name="isAsset" app:argType="boolean" android:defaultValue="false" />
+        </action>
+        <action android:id="@+id/action_history_to_compare" app:destination="@id/compareFragment">
+            <argument android:name="beforeId" app:argType="string" />
+            <argument android:name="afterId" app:argType="string" />
+        </action>
+    </fragment>
+
+    <fragment
+        android:id="@+id/settingsFragment"
+        android:name="com.ancientguard.app.ui.SettingsFragment"
+        android:label="SettingsFragment" />
+
+    <fragment
+        android:id="@+id/compareFragment"
+        android:name="com.ancientguard.app.ui.CompareFragment"
+        android:label="CompareFragment">
+        <argument android:name="beforeId" app:argType="string" />
+        <argument android:name="afterId" app:argType="string" />
+    </fragment>
+</navigation>

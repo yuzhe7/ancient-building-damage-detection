@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/paper_bg">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:text="设置"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:textColor="@color/ink_black"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="16dp"
+        android:background="@color/card_bg" />
+
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="16dp"
+        app:cardCornerRadius="8dp">
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/model_select"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="@color/ink_black"
+                android:layout_marginBottom="12dp" />
+
+            <RadioGroup
+                android:id="@+id/rgModel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+                <RadioButton
+                    android:id="@+id/rbNano"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="YOLOv8n · 6MB · 快速"
+                    android:checked="true" />
+                <RadioButton
+                    android:id="@+id/rbSmall"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="YOLOv8s · 22MB · 均衡" />
+                <RadioButton
+                    android:id="@+id/rbMedium"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="YOLOv8m · 50MB · 高精度" />
+            </RadioGroup>
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="16dp"
+        app:cardCornerRadius="8dp">
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/threshold"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="@color/ink_black" />
+            <TextView
+                android:id="@+id/tvThresholdValue"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="0.40"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:textColor="@color/cinnabar_red"
+                android:layout_marginTop="4dp" />
+            <com.google.android.material.slider.Slider
+                android:id="@+id/sliderThreshold"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:valueFrom="0.0"
+                android:valueTo="1.0"
+                android:value="0.4"
+                android:stepSize="0.05" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnExport"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_margin="16dp"
+        android:text="@string/export_all"
+        style="@style/Widget.Material3.Button.OutlinedButton" />
+
+    <Space android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="古建损伤检测 v1.0.0"
+        android:textSize="12sp"
+        android:textColor="#CCCCCC"
+        android:gravity="center"
+        android:padding="16dp" />
+</LinearLayout>

@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/paper_bg">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="12dp"
+        android:background="@color/card_bg">
+        <ImageButton
+            android:id="@+id/btnBackCompare"
+            android:layout_width="48dp" android:layout_height="48dp"
+            android:src="@android:drawable/ic_menu_revert"
+            android:background="?attr/selectableItemBackgroundBorderless" />
+        <TextView
+            android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" android:text="修复前后对比"
+            android:textSize="20sp" android:textStyle="bold"
+            android:textColor="@color/ink_black" android:gravity="center" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp" android:layout_weight="1"
+        android:orientation="horizontal">
+
+        <LinearLayout
+            android:layout_width="0dp" android:layout_height="match_parent"
+            android:layout_weight="1" android:orientation="vertical"
+            android:padding="4dp">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="修复前" android:textSize="14sp" android:textStyle="bold"
+                android:textColor="@color/cinnabar_red" android:gravity="center"
+                android:layout_gravity="center" android:padding="4dp" />
+            <ImageView android:id="@+id/ivBefore"
+                android:layout_width="match_parent" android:layout_height="0dp"
+                android:layout_weight="1" android:scaleType="fitCenter" />
+        </LinearLayout>
+
+        <View android:layout_width="2dp" android:layout_height="match_parent"
+            android:background="@color/divider" />
+
+        <LinearLayout
+            android:layout_width="0dp" android:layout_height="match_parent"
+            android:layout_weight="1" android:orientation="vertical"
+            android:padding="4dp">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="修复后" android:textSize="14sp" android:textStyle="bold"
+                android:textColor="@color/severity_mild" android:gravity="center"
+                android:layout_gravity="center" android:padding="4dp" />
+            <ImageView android:id="@+id/ivAfter"
+                android:layout_width="match_parent" android:layout_height="0dp"
+                android:layout_weight="1" android:scaleType="fitCenter" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Change summary -->
+    <LinearLayout
+        android:id="@+id/changeSummary"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="12dp"
+        android:background="@color/card_bg">
+
+        <TextView android:id="@+id/tvCompareSummary"
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:textSize="16sp" android:textStyle="bold"
+            android:textColor="@color/ink_black" />
+        <TextView android:id="@+id/tvCompareDetail"
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:textSize="14sp" android:textColor="#666666"
+            android:layout_marginTop="4dp" />
+    </LinearLayout>
+</LinearLayout>

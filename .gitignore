@@ -1,0 +1,40 @@
+# Model weights (large binaries)
+*.pt
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# Build / Distribution
+dist/
+build/
+*.spec
+
+# Training runs
+runs/
+
+# Temp files
+*.output
+.tmp/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+Desktop.ini
+
+# Datasets cache
+datasets/
+*.cache
+
+# Test output
+test_*.pdf
+test_*.xlsx
+
+# Claude
+.claude/
+.superpowers/

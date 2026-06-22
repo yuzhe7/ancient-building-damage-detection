@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/paper_bg">
+
+    <androidx.camera.view.PreviewView
+        android:id="@+id/viewFinder"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/bottomBar"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- Mode indicator -->
+    <TextView
+        android:id="@+id/tvMode"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="📷"
+        android:textSize="24sp"
+        android:padding="8dp"
+        android:layout_margin="12dp"
+        android:background="#AAFFF8F0"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- Flash button -->
+    <ImageButton
+        android:id="@+id/btnFlash"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_margin="12dp"
+        android:src="@android:drawable/ic_lock_idle_alarm"
+        android:contentDescription="闪光灯"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <!-- Realtime detection toggle -->
+    <ImageButton
+        android:id="@+id/btnRealtime"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_margin="12dp"
+        android:src="@android:drawable/ic_media_play"
+        android:contentDescription="实时检测"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toEndOf="@id/btnFlash" />
+
+    <TextView
+        android:id="@+id/tvHint"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/hint_aim"
+        android:textColor="@color/ink_black"
+        android:textSize="14sp"
+        android:background="#AAFFF8F0"
+        android:padding="10dp"
+        android:layout_marginBottom="16dp"
+        app:layout_constraintBottom_toTopOf="@id/bottomBar"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <LinearLayout
+        android:id="@+id/bottomBar"
+        android:layout_width="match_parent"
+        android:layout_height="120dp"
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:background="@color/card_bg"
+        app:layout_constraintBottom_toBottomOf="parent">
+
+        <ImageButton
+            android:id="@+id/btnGallery"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:layout_marginEnd="32dp"
+            android:src="@android:drawable/ic_menu_gallery"
+            android:contentDescription="@string/btn_gallery"
+            android:background="?attr/selectableItemBackgroundBorderless" />
+
+        <ImageButton
+            android:id="@+id/btnCapture"
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            android:src="@android:drawable/ic_menu_camera"
+            android:contentDescription="@string/btn_capture"
+            android:background="@drawable/capture_button_bg" />
+
+        <ImageButton
+            android:id="@+id/btnFlip"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:layout_marginStart="32dp"
+            android:src="@android:drawable/ic_menu_rotate"
+            android:contentDescription="@string/btn_flip"
+            android:background="?attr/selectableItemBackgroundBorderless" />
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="paper_bg">#FFF8F0</color>
+    <color name="cinnabar_red">#CC3333</color>
+    <color name="bronze_gold">#C8A45C</color>
+    <color name="ink_black">#333333</color>
+    <color name="severity_mild">#4CAF50</color>
+    <color name="severity_medium">#FF9800</color>
+    <color name="severity_severe">#F44336</color>
+    <color name="card_bg">#FFFFFF</color>
+    <color name="divider">#E0D8CC</color>
+</resources>
