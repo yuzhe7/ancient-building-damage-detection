@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""将 YOLOv8 训练好的 .pt 模型导出为 TFLite 格式，供 Android App 使用。
+"""将 YOLOv8 训练好的 .pt 模型导出为 TFLite 格式，供 Android App 使用。.
 
 Usage:
     python scripts/export_tflite.py \
@@ -11,6 +11,7 @@ Usage:
 import argparse
 import shutil
 from pathlib import Path
+
 from ultralytics import YOLO
 
 
@@ -45,7 +46,7 @@ def export_to_tflite(weights: str, output: str, imgsz: int = 640, int8: bool = F
     output_path.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(fp32_path, output_path)
     print(f"Copied to: {output_path}")
-    print(f"Size: {output_path.stat().st_size / 1024:.1f} KB ({output_path.stat().st_size / (1024*1024):.2f} MB)")
+    print(f"Size: {output_path.stat().st_size / 1024:.1f} KB ({output_path.stat().st_size / (1024 * 1024):.2f} MB)")
     print("Ready for Android assets!")
 
 
