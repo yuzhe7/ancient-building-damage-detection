@@ -70,6 +70,7 @@ android-app/
 ### Task 1: 项目脚手架 + Gradle 配置
 
 **Files:**
+
 - Create: `android-app/settings.gradle.kts`
 - Create: `android-app/build.gradle.kts`
 - Create: `android-app/gradle.properties`
@@ -297,6 +298,7 @@ cd android-app && git init && git add -A && git commit -m "feat: scaffold Androi
 ### Task 2: Room 数据层 (Entity + DAO + Database)
 
 **Files:**
+
 - Create: `android-app/app/src/main/java/com/ancientguard/app/data/Inspection.kt`
 - Create: `android-app/app/src/main/java/com/ancientguard/app/data/Damage.kt`
 - Create: `android-app/app/src/main/java/com/ancientguard/app/data/InspectionDao.kt`
@@ -556,6 +558,7 @@ git commit -m "feat: add Room data layer — Inspection, Damage entities, DAOs, 
 ### Task 3: 检测引擎核心 (TFLiteDetector + Renderer + Severity + Advice)
 
 **Files:**
+
 - Create: `android-app/app/src/main/java/com/ancientguard/app/util/Constants.kt`
 - Create: `android-app/app/src/main/java/com/ancientguard/app/detection/TFLiteDetector.kt`
 - Create: `android-app/app/src/main/java/com/ancientguard/app/detection/BoundingBoxRenderer.kt`
@@ -880,6 +883,7 @@ class DetectionTest {
 ```bash
 ./gradlew :app:testDebugUnitTest --tests "com.ancientguard.app.detection.DetectionTest"
 ```
+
 Expected: 6 tests PASS
 
 - [ ] **Step 8: Commit**
@@ -895,6 +899,7 @@ git commit -m "feat: add detection engine — TFLite detector, renderer, severit
 ### Task 4: 拍照 Fragment (CameraX 预览 + 拍摄)
 
 **Files:**
+
 - Create: `android-app/app/src/main/res/layout/fragment_camera.xml`
 - Create: `android-app/app/src/main/java/com/ancientguard/app/ui/CameraFragment.kt`
 
@@ -1160,6 +1165,7 @@ git commit -m "feat: add CameraFragment with CameraX preview and photo capture"
 ### Task 5: 检测结果 Fragment (标注图 + 统计卡片 + 损伤列表)
 
 **Files:**
+
 - Create: `android-app/app/src/main/res/layout/fragment_result.xml`
 - Create: `android-app/app/src/main/res/layout/stats_card_row.xml`
 - Create: `android-app/app/src/main/res/layout/item_damage.xml`
@@ -1737,6 +1743,7 @@ git commit -m "feat: add ResultFragment with annotated image, stats cards, and d
 ### Task 6: 历史记录 Fragment
 
 **Files:**
+
 - Create: `android-app/app/src/main/res/layout/fragment_history.xml`
 - Create: `android-app/app/src/main/res/layout/item_history_group.xml`
 - Create: `android-app/app/src/main/res/layout/item_history_child.xml`
@@ -2030,6 +2037,7 @@ git commit -m "feat: add HistoryFragment with grouped records and delete all"
 ### Task 7: 设置 Fragment
 
 **Files:**
+
 - Create: `android-app/app/src/main/res/layout/fragment_settings.xml`
 - Create: `android-app/app/src/main/java/com/ancientguard/app/ui/SettingsFragment.kt`
 
@@ -2253,6 +2261,7 @@ git commit -m "feat: add SettingsFragment with model selection and threshold sli
 ### Task 8: MainActivity + Navigation
 
 **Files:**
+
 - Create: `android-app/app/src/main/java/com/ancientguard/app/MainActivity.kt`
 - Create: `android-app/app/src/main/res/layout/activity_main.xml`
 - Modify: `android-app/app/src/main/AndroidManifest.xml` (add FileProvider)
@@ -2448,13 +2457,14 @@ git commit -m "feat: add MainActivity with bottom navigation and FileProvider"
 ### Task 9: 模型导出脚本
 
 **Files:**
+
 - Create: `scripts/export_tflite.py`
 
 - [ ] **Step 1: export_tflite.py**
 
 ```python
 #!/usr/bin/env python3
-"""将 YOLOv8 训练好的 .pt 模型导出为 TFLite 格式，供 Android App 使用。
+"""将 YOLOv8 训练好的 .pt 模型导出为 TFLite 格式，供 Android App 使用。.
 
 Usage:
     python scripts/export_tflite.py \
@@ -2465,6 +2475,7 @@ Usage:
 
 import argparse
 from pathlib import Path
+
 from ultralytics import YOLO
 
 
@@ -2503,11 +2514,14 @@ def export_to_tflite(weights: str, output: str, imgsz: int = 640, int8: bool = F
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     import shutil
+
     src = fp32_path
     shutil.copy2(src, output_path)
     print(f"✅ Copied to Android assets: {output_path}")
-    print(f"\n📱 Model file ready. Add to Android app assets/ directory.")
-    print(f"   File size: {output_path.stat().st_size / 1024:.1f} KB ({output_path.stat().st_size / (1024*1024):.2f} MB)")
+    print("\n📱 Model file ready. Add to Android app assets/ directory.")
+    print(
+        f"   File size: {output_path.stat().st_size / 1024:.1f} KB ({output_path.stat().st_size / (1024 * 1024):.2f} MB)"
+    )
 
 
 def main():
@@ -2529,10 +2543,11 @@ if __name__ == "__main__":
 
 ```bash
 python scripts/export_tflite.py \
-    --weights yolo26n.pt \
-    --output android-app/app/src/main/assets/model_nano.tflite \
-    --imgsz 640
+  --weights yolo26n.pt \
+  --output android-app/app/src/main/assets/model_nano.tflite \
+  --imgsz 640
 ```
+
 Expected: model_nano.tflite ~6MB in android-app/app/src/main/assets/
 
 - [ ] **Step 3: Commit**
@@ -2552,6 +2567,7 @@ git commit -m "feat: add YOLOv8 to TFLite export script"
 cd android-app
 ./gradlew :app:testDebugUnitTest
 ```
+
 Expected: All tests PASS
 
 - [ ] **Step 2: Build debug APK**
@@ -2559,6 +2575,7 @@ Expected: All tests PASS
 ```bash
 ./gradlew :app:assembleDebug
 ```
+
 Expected: `app/build/outputs/apk/debug/app-debug.apk` generated (~30MB)
 
 - [ ] **Step 3: Verify APK contents**
@@ -2566,6 +2583,7 @@ Expected: `app/build/outputs/apk/debug/app-debug.apk` generated (~30MB)
 ```bash
 unzip -l app/build/outputs/apk/debug/app-debug.apk | grep -E '(tflite|\.so)'
 ```
+
 Expected: `model_nano.tflite` in assets, `libtensorflowlite_*.so` in lib/
 
 - [ ] **Step 4: Install on device and manual smoke test**
@@ -2575,6 +2593,7 @@ adb install app/build/outputs/apk/debug/app-debug.apk
 ```
 
 Smoke test checklist:
+
 1. App opens → shows camera preview
 2. Grant camera permission → preview visible
 3. Take photo → loading → result page with annotated image
@@ -2589,6 +2608,7 @@ Smoke test checklist:
 ```bash
 ./gradlew :app:assembleRelease
 ```
+
 Expected: Signed release APK in `app/build/outputs/apk/release/`
 
 - [ ] **Step 6: Commit**
@@ -2619,12 +2639,12 @@ Tasks 1-3 are foundational and must be sequential. Tasks 4-8 build the UI layer.
 
 ## Dependencies
 
-| Dependency | Version |
-|-----------|---------|
-| Android Studio | Hedgehog 2023.1+ |
-| Kotlin | 1.9.22 |
-| Gradle | 8.2+ |
-| Android SDK | 34 |
-| NDK | Not required (TFLite AAR includes prebuilt .so) |
-| Python | 3.8+ (for model export only) |
-| ultralytics | 8.x |
+| Dependency     | Version                                         |
+| -------------- | ----------------------------------------------- |
+| Android Studio | Hedgehog 2023.1+                                |
+| Kotlin         | 1.9.22                                          |
+| Gradle         | 8.2+                                            |
+| Android SDK    | 34                                              |
+| NDK            | Not required (TFLite AAR includes prebuilt .so) |
+| Python         | 3.8+ (for model export only)                    |
+| ultralytics    | 8.x                                             |
