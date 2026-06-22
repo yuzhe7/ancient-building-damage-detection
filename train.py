@@ -1,9 +1,11 @@
-from ultralytics import YOLO
 import torch
-model=YOLO(model='yolov8n.pt')
+
+from ultralytics import YOLO
+
+model = YOLO(model="yolov8n.pt")
 
 device = 0 if torch.cuda.is_available() else "cpu"
-print(f"使用设备：{torch.cuda.get_device_name(0) if device==0 else 'CPU'}")
+print(f"使用设备：{torch.cuda.get_device_name(0) if device == 0 else 'CPU'}")
 
 model.train(
     data="yolo-bvn.yaml",
@@ -16,5 +18,5 @@ model.train(
     device=device,
     imgsz=640,
     amp=True,
-    resume=False
+    resume=False,
 )
