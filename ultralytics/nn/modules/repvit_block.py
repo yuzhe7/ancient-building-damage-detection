@@ -1,4 +1,3 @@
-import torch
 import torch.nn as nn
 
 
@@ -11,11 +10,7 @@ class RepViTBlock(nn.Module):
         self.cv2 = nn.Conv2d(c2, hidden_dim, 1)
         self.cv3 = nn.Conv2d(hidden_dim, c2, 1)
         self.se = nn.Sequential(
-            nn.AdaptiveAvgPool2d(1),
-            nn.Conv2d(c2, c2 // 4, 1),
-            nn.SiLU(),
-            nn.Conv2d(c2 // 4, c2, 1),
-            nn.Sigmoid()
+            nn.AdaptiveAvgPool2d(1), nn.Conv2d(c2, c2 // 4, 1), nn.SiLU(), nn.Conv2d(c2 // 4, c2, 1), nn.Sigmoid()
         )
 
     def forward(self, x):
